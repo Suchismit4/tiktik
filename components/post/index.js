@@ -35,6 +35,12 @@ const Post = forwardRef((props, parentRef) => {
             ]).start();
         }
     };
+
+    const onLikePress = () => {
+        setLiked(prevLiked => !prevLiked);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    };
+
     
     // Expose play, stop, and unload methods to the parent via forwardRef
     useImperativeHandle(parentRef, () => ({
@@ -101,8 +107,10 @@ const Post = forwardRef((props, parentRef) => {
                         />
                     </Animated.View>
                 </TapGestureHandler>
+                
 
-                <Controls liked={liked} scale={scaleValue} />
+                <Controls liked={liked} scale={scaleValue} onLikePress={onLikePress}/>
+
                 <View style={styles.postinfo}>
                     <SafeAreaView>
                         <PostInfo />
