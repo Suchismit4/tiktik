@@ -61,6 +61,19 @@ const styles = StyleSheet.create({
         borderRadius: 50,  // Make the image circular
         marginBottom: 40,  // Add some space between the photo and account info
     },
+    galleryContainer: {
+        flexDirection: 'row',     // Arrange images in a row
+        flexWrap: 'wrap',         // Wrap to next line if there are many images
+        justifyContent: 'center', // Center the gallery
+        marginTop: 10,
+    },
+        galleryImage: {
+        width: 80,               // Thumbnail width
+        height: 80,              // Thumbnail height
+        margin: 5,               // Space between thumbnails
+        borderRadius: 10,        // Optional: make the corners rounded
+    },
+
 })
 
 export default styles;

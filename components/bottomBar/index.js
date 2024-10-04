@@ -93,19 +93,39 @@ export default function BottomBar() {
                 </TouchableOpacity>
             </View>
 
-            {/* Dropdown content */}
-            {dropdownVisible && (
-                <Animated.View style={[styles.dropdown, { transform: [{ translateY: dropdownTranslateY }] }]}>
-                {/* User Photo */}
-                    <Image
-                        style={styles.userPhoto}  // Add styling for the user photo
-                        source={{ uri: 'https://i.imgur.com/JGmoHaP.jpeg' }}
-                    />
-		    <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Account Info</Text>
-                    <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Settings</Text>
-                    <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Logout</Text>
-                </Animated.View>
-            )}
+         {/* Dropdown content */}
+         {dropdownVisible && (
+    <Animated.View style={[styles.dropdown, { transform: [{ translateY: dropdownTranslateY }] }]}>
+        {/* Centering container */}
+        <View style={{ alignItems: 'center' }}>
+            {/* User Photo */}
+            <Image
+                style={styles.userPhoto}
+                source={{ uri: 'https://i.imgur.com/JGmoHaP.jpeg' }}
+            />
+            <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Account Info</Text>
+            <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Settings</Text>
+            <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay' }]}>Logout</Text>
+        </View>
+
+        {/* Liked Videos Section */}
+        <Text style={[styles.dropdownText, { fontFamily: 'ClashDisplay', marginTop: 20 }]}>
+            Liked Videos
+        </Text>
+
+        {/* Video Thumbnails Gallery */}
+        <View style={styles.galleryContainer}>
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+            <Image style={styles.galleryImage} source={{ uri: 'https://png.pngtree.com/template/20220505/ourmid/pngtree-breaking-news-logo-flat-vector-banner-image_1335485.jpg' }} />
+        </View>
+    </Animated.View>
+)}
+
+
         </View>
     );
 
