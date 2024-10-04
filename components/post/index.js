@@ -4,8 +4,8 @@ import { Video } from 'expo-av';
 import styles from './style';
 import Controls from '../controls';
 import PostInfo from '../InfoText';
-import { Animated } from 'react-native';
-import { GestureHandlerRootView, TapGestureHandler, State } from 'react-native-gesture-handler';
+import { Animated, TextInput, Button } from 'react-native';
+import { GestureHandlerRootView, TapGestureHandler, State, PanGestureHandler } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
 const Post = forwardRef((props, parentRef) => {
@@ -13,6 +13,8 @@ const Post = forwardRef((props, parentRef) => {
     const ref = useRef(null);    
     const [liked, setLiked] = useState(false);
     const scaleValue = useRef(new Animated.Value(1)).current;
+    const [showComments, setShowComments] = useState(false);
+    const commentSlideAnim = useRef(new Animated.Value(0)).current;
 
     // Handle double-tap gesture and trigger like animation with haptic feedback
     const onDoubleTap = (event) => {
@@ -39,6 +41,36 @@ const Post = forwardRef((props, parentRef) => {
     const onLikePress = () => {
         setLiked(prevLiked => !prevLiked);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    };
+
+    const onCommentPress = () => {
+        setShowComments(!showComments);
+        Animated.timing(commentSlideAnim, {
+            toValue: showComments ? 0 : 1,
+            duration: 300,
+            useNativeDriver: false,
+        }).start();
+    };
+
+    const dismissCommentSection = () => {
+        setShowComments(false);
+        Animated.timing(commentSlideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+        }).start();
+    };
+
+    const commentSectionStyle = {
+        transform: [
+            {
+                translateY: commentSlideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [300, 0],
+                }),
+            },
+        ],
+        opacity: commentSlideAnim,
     };
 
     
@@ -109,13 +141,26 @@ const Post = forwardRef((props, parentRef) => {
                 </TapGestureHandler>
                 
 
-                <Controls liked={liked} scale={scaleValue} onLikePress={onLikePress}/>
+                <Controls liked={liked} scale={scaleValue} onLikePress={onLikePress} onCommentPress={onCommentPress}/>
 
                 <View style={styles.postinfo}>
                     <SafeAreaView>
                         <PostInfo />
                     </SafeAreaView>
                 </View>
+
+                <PanGestureHandler onGestureEvent={(event) => {
+                    if (event.nativeEvent.translationY > 50) { // Threshold for swipe down
+                        dismissCommentSection();
+                    }
+                }}>
+                    <Animated.View style={[styles.commentSection, commentSectionStyle]}>
+                        <TextInput style={styles.commentInput} placeholder="Write a comment..." />
+                        <Button title="Send" onPress={() => { /* handle comment submission */ }} />
+                    </Animated.View>
+                </PanGestureHandler>
+
+
             </>
         </GestureHandlerRootView>
     );

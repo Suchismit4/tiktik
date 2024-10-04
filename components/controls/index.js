@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();  // Prevent splash screen from auto-hiding
 
-export default function Controls({ liked, scale, onLikePress }) {   
+export default function Controls({ liked, scale, onLikePress, onCommentPress }) {   
   
     // Load fonts using the useFonts hook
     let [fontsLoaded, fontError] = useFonts({
@@ -39,10 +39,12 @@ export default function Controls({ liked, scale, onLikePress }) {
                 <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>3.8K</Text>
             </View>
             <View style={styles.containerIcon}>
-                <Image
-                    style={[styles.button]}
-                    source={{ uri: 'https://i.imgur.com/YoBTj48.png' }}
-                />
+                <TouchableOpacity onPress={onCommentPress}>
+                    <Image
+                        style={[styles.button]}
+                        source={{ uri: 'https://i.imgur.com/YoBTj48.png' }}
+                    />
+                </TouchableOpacity>
                 <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>482</Text>
             </View>
             <View style={styles.containerIcon}>
