@@ -1,9 +1,9 @@
 {
-  "name": "my-app",
+  "name": "tiktik",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --dev-client",
+    "start": "expo start --dev-client --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
@@ -12,6 +12,7 @@
     "@expo-google-fonts/inter": "^0.2.3",
     "@expo/config-plugins": "^8.0.8",
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-navigation/native": "^6.1.15",
     "@react-navigation/stack": "^6.3.26",
     "expo": "^51.0.32",
@@ -21,7 +22,7 @@
     "expo-linear-gradient": "~13.0.2",
     "expo-splash-screen": "^0.27.5",
     "expo-status-bar": "~1.12.1",
-    "firebase": "^10.8.1",
+    "firebase": "^10.14.0",
     "react": "18.2.0",
     "react-native": "^0.74.5",
     "react-native-gesture-handler": "~2.16.1",
