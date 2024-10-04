@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useRef, useState } from 'react';
 import { FlatList, SafeAreaView, Text, View, Dimensions } from 'react-native';
 import Post from '../post';
@@ -8,8 +7,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import styles from './style';
 
 export default function Feed() {
-  const mediaRefs = useRef([]);
-  const array = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+  const mediaRefs = useRef({});
+  const array = [
+    { id: 1, uri: 'https://drive.google.com/uc?export=download&id=1567uKxxJx9J5uvf0BbLU-Qipe0YZZl39' },
+    { id: 2, uri: 'https://drive.google.com/uc?export=download&id=17QAoPwiSeQjm-v8uO3gp7BymemHCzh_T' },
+    { id: 3, uri: 'https://drive.google.com/uc?export=download&id=19YlJ9AcQJxlocoe3puA5aHriaKtvufB8' },
+    { id: 4, uri: 'https://drive.google.com/uc?export=download&id=1ZiEPJPjTlYUnOabU7UjnoFtrbT6JNKaJ' },
+    { id: 5, uri: 'https://drive.google.com/uc?export=download&id=1h2Ns1ZKui5XPB8c1sUxHMPKB7ElVB5sW' },
+    { id: 6, uri: 'https://drive.google.com/uc?export=download&id=1jrZaKS8ZkycMCCW9wdcLQuJTuh4p8WS0' },
+    { id: 7, uri: 'https://drive.google.com/uc?export=download&id=1pqHpIZuIR3rCDhdYJkDB6BOYEcwV7ejG' },
+  ];
+
   const [maxScrollDepth, setMaxScrollDepth] = useState(0);
   const [timeSpent, setTimeSpent] = useState({}); // Track time spent on each content
   const lastViewedRef = useRef({ startTime: null, contentId: null }); // Track last viewed content
@@ -47,21 +55,16 @@ export default function Feed() {
         if (element.isViewable) {
           cell.play();  // Play the media when the item is viewable
         } else {
-          cell.stop();  // Stop the media when the item is not viewable
+          cell.pause();  // Pause the media when the item is not viewable
         }
       }
     });
   });
 
   // Render each post in the list
-  const renderItem = ({ item, index }) => (
-    <View
-      style={[
-        { height: Dimensions.get('window').height },
-        index % 2 ? { backgroundColor: 'blue' } : { backgroundColor: 'pink' },
-      ]}
-    >
-      <Post ref={(PostSingleRef) => (mediaRefs.current[item] = PostSingleRef)} />
+  const renderItem = ({ item }) => (
+    <View style={{ height: Dimensions.get('window').height }}>
+      <Post ref={(PostSingleRef) => (mediaRefs.current[item.id.toString()] = PostSingleRef)} uri={item.uri} />
     </View>
   );
 
@@ -78,7 +81,7 @@ export default function Feed() {
         }}
         renderItem={renderItem}
         pagingEnabled
-        keyExtractor={(item) => item.toString()}
+        keyExtractor={(item) => item.id.toString()} // Use item.id as the key
         decelerationRate="slow"
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged.current}
