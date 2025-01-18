@@ -82,7 +82,7 @@ export default function Feed() {
         renderItem={renderItem}
         pagingEnabled
         keyExtractor={(item) => item.id.toString()} // Use item.id as the key
-        // decelerationRate="slow"
+        // decelerationRate="slow" TODO: Broken since new version
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged.current}
       />
