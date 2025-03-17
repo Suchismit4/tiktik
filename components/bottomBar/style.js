@@ -1,40 +1,43 @@
+// changed all of this
 import { StyleSheet } from "react-native"
 
 const styles = StyleSheet.create({
     container: {
         height: 70,
-        paddingLeft: 35,
-        
-        paddingRight: 35,
+        paddingHorizontal: 35, // Shortened for cleaner code
         paddingBottom: 0,
+
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#000',
+        zIndex: 10,
+        alignItems: 'center', // Ensures child elements are centered
     },
     iconsHolder: {
-        padding: 0,
-        margin: 0,
-        marginTop: 11,
-        
-        flex: 1,
-        display: 'flex',
         flexDirection: 'row',
-        justifyContent: "space-between",
+        justifyContent: "space-around", // Evenly distributes icons
         alignItems: 'center',
+        width: '100%', // Ensures full-width usage
+        alignSelf: 'center', // Centers within the container
     },
     icons: {
         width: 35,
         height: 35
     },
     iconHolder: {
-        display: 'flex',
+        flex: 1, // Allows flexibility in centering
         justifyContent: 'center',
         alignItems: 'center',
-        alignContent: 'center'
     },
     title: {        
         fontFamily: "ClashDisplay",
         fontSize: 12,
-        fontWeight: 100,
+        fontWeight: "100",
         marginTop: 5,
-        color: "#ddd"
+        color: "#ddd",
+        textAlign: 'center', // Ensures text is centered below icons
     }
 })
 

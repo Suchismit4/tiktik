@@ -22,6 +22,12 @@ export default function Feed() {
   const [timeSpent, setTimeSpent] = useState({}); // Track time spent on each content
   const lastViewedRef = useRef({ startTime: null, contentId: null }); // Track last viewed content
 
+  // added this
+  const onFactsPress = () => {
+    console.log("Facts button clicked!");
+    // Add any additional logic you want to handle here
+  };
+
   // Viewable item handler to track media play/pause and time spent on content
   const onViewableItemsChanged = useRef(({ viewableItems, changed }) => {
     const currentTime = Date.now();
@@ -62,9 +68,15 @@ export default function Feed() {
   });
 
   // Render each post in the list
+  //added this
   const renderItem = ({ item }) => (
     <View style={{ height: Dimensions.get('window').height }}>
-      <Post ref={(PostSingleRef) => (mediaRefs.current[item.id.toString()] = PostSingleRef)} uri={item.uri} />
+      {/* Pass the uri and onFactsPress to the Post component */}
+      <Post
+        ref={(PostSingleRef) => (mediaRefs.current[item.id.toString()] = PostSingleRef)}
+        uri={item.uri}
+        onFactsPress={onFactsPress}  // Passing the function as prop
+      />
     </View>
   );
 

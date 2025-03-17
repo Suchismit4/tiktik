@@ -6,8 +6,8 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();  // Prevent splash screen from auto-hiding
 
-export default function Controls({ liked, scale, onLikePress, onCommentPress }) {   
-  
+export default function Controls({ liked, scale, onLikePress, onFactsPress }) {
+
     // Load fonts using the useFonts hook
     let [fontsLoaded, fontError] = useFonts({
         Inter_700Bold,
@@ -36,24 +36,25 @@ export default function Controls({ liked, scale, onLikePress, onCommentPress }) 
                         />
                     </Animated.View>
                 </TouchableOpacity>
+
+
                 <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>3.8K</Text>
+
+
             </View>
             <View style={styles.containerIcon}>
-                <TouchableOpacity onPress={onCommentPress}>
+
+                <TouchableOpacity onPress={onFactsPress}>
                     <Image
                         style={[styles.button]}
-                        source={{ uri: 'https://i.imgur.com/YoBTj48.png' }}
+                        source={{ uri: 'https://i.imgur.com/SNF08AQ.png' }} // new image
                     />
                 </TouchableOpacity>
-                <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>482</Text>
+
+                <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>Facts</Text>
+
             </View>
-            <View style={styles.containerIcon}>
-                <Image
-                    style={[styles.button]}
-                    source={{ uri: 'https://i.imgur.com/WvKdQhU.png' }}
-                />
-                <Text style={[styles.iconText, { fontFamily: 'Inter_700Bold' }]}>10</Text>
-            </View>
+
         </View>
     );
 }
