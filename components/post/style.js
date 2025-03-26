@@ -40,12 +40,14 @@
 // });
 
 // export default styles;
-
 import { Dimensions, StyleSheet } from "react-native"
+
+const { height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
     container: {
         flex: 1, // Ensure the video takes up all available space inside the parent
+        height: height, // Ensure each item fills the screen height
     },
     postinfo: {
         position: 'absolute',
@@ -69,7 +71,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
-        elevation: 5,
+        elevation: 10,
+        zIndex: 999,  // Ensures it's above everything else
     },
 
     //added this
@@ -91,10 +94,17 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 20,
     },
+    closeButtonContainer: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        padding: 10,
+    },
+    
     closeButton: {
-        fontSize: 14,
-        color: 'blue',
-        marginTop: 10,
+        fontSize: 20,
+        color: '#333',
+        fontWeight: 'bold',
     }
     
 });

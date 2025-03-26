@@ -6,6 +6,8 @@ import BottomBar from '../bottomBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import styles from './style';
 
+const { height } = Dimensions.get("window"); // Get full screen height
+
 export default function Feed() {
   const mediaRefs = useRef({});
   const array = [
@@ -21,6 +23,8 @@ export default function Feed() {
   const [maxScrollDepth, setMaxScrollDepth] = useState(0);
   const [timeSpent, setTimeSpent] = useState({}); // Track time spent on each content
   const lastViewedRef = useRef({ startTime: null, contentId: null }); // Track last viewed content
+
+  const flatListRef = useRef(null); // added
 
   // added this
   const onFactsPress = () => {
@@ -71,11 +75,11 @@ export default function Feed() {
   //added this
   const renderItem = ({ item }) => (
     <View style={{ height: Dimensions.get('window').height }}>
-      {/* Pass the uri and onFactsPress to the Post component */}
+      {/* add */}
       <Post
         ref={(PostSingleRef) => (mediaRefs.current[item.id.toString()] = PostSingleRef)}
         uri={item.uri}
-        onFactsPress={onFactsPress}  // Passing the function as prop
+        onFactsPress={onFactsPress}  // Passing the function
       />
     </View>
   );
@@ -92,17 +96,24 @@ export default function Feed() {
           itemVisiblePercentThreshold: 30,
         }}
         renderItem={renderItem}
-        pagingEnabled
-        keyExtractor={(item) => item.id.toString()} // Use item.id as the key
-        // decelerationRate="slow" TODO: Broken since new version
+
+        // added this
+        snapToInterval={height}
+        decelerationRate="fast"
+        snapToAlignment="start"
+        pagingEnabled={true}
+
+        keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged.current}
       />
-      <LinearGradient
-        colors={['rgba(0, 0, 0, 0.5)', 'transparent']}
-        style={styles.gradientOverlayTop}
-      />
-
+      
+      {/* Ensure Facts Button is Above Everything */}
+      <View style={styles.factsButtonContainer}>
+        <Text style={styles.factsButton}>Facts</Text>
+      </View>
+  
+      {/* Overlay at the top for navbar */}
       <SafeAreaView style={styles.overlayTop}>
         <Navbar />
         <Text>Scroll Depth: {maxScrollDepth}</Text>
@@ -110,10 +121,12 @@ export default function Feed() {
           <Text key={contentId}>Content {contentId} - Time Spent: {time}ms</Text>
         ))}
       </SafeAreaView>
-
+  
+      {/* Bottom Bar should always be visible */}
       <SafeAreaView style={styles.overlayBottom}>
-        <BottomBar style={styles.bottomBar} />
+        <BottomBar />
       </SafeAreaView>
     </View>
   );
+  
 }

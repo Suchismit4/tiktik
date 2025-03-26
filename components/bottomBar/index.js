@@ -46,24 +46,28 @@ export default function BottomBar() {
                     <Image
                         style={styles.icons}
                         source={{ uri: 'https://i.imgur.com/FPWxlQu.png' }}
+                        onError={() => console.log("Error loading Local icon")}
                     />
-                    <Text style={[styles.title, { fontFamily: 'ClashDisplay' }]}>Local</Text>
+                    <Text style={styles.title}>Local</Text>
                 </View>
                 <View style={styles.iconHolder}>
                     <Image
                         style={styles.icons}
                         source={{ uri: 'https://i.imgur.com/ucdiIvc.png' }}
+                        onError={() => console.log("Error loading For you icon")}
                     />
-                    <Text style={[styles.title, { fontFamily: 'ClashDisplay' }]}>For you</Text>
+                    <Text style={styles.title}>For you</Text>
                 </View>
                 <View style={styles.iconHolder}>
                     <Image
                         style={styles.icons}
                         source={{ uri: 'https://i.imgur.com/LHZMHpM.png' }}
+                        onError={() => console.log("Error loading Account icon")}
                     />
-                    <Text style={[styles.title, { fontFamily: 'ClashDisplay' }]}>Account</Text>
+                    <Text style={styles.title}>Account</Text>
                 </View>
             </View>
         </View>
     );
+    
 }

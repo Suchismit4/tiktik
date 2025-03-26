@@ -40,11 +40,11 @@ const styles = StyleSheet.create({
     },
     postinfo: {
       position: 'absolute',
-      bottom: "17%", // Adjust according to your design
+      bottom: "17%",
       width: "70%",
       left: 33,
       right: 0,
-      zIndex: 10, // Ensure it's above the gradient
+      zIndex: 10, 
     }
   });
   

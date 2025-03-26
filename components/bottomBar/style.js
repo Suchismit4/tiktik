@@ -1,11 +1,11 @@
-// changed all of this
-import { StyleSheet } from "react-native"
+import { StyleSheet } from "react-native";
 
 const styles = StyleSheet.create({
     container: {
-        height: 70,
-        paddingHorizontal: 35, // Shortened for cleaner code
-        paddingBottom: 0,
+        height: 85, // Slightly taller for better spacing
+        paddingHorizontal: 35,
+        paddingTop: 13, // More space on top
+        paddingBottom: 18, // More padding at the bottom for separation
 
         position: 'absolute',
         bottom: 0,
@@ -13,21 +13,21 @@ const styles = StyleSheet.create({
         right: 0,
         backgroundColor: '#000',
         zIndex: 10,
-        alignItems: 'center', // Ensures child elements are centered
+        alignItems: 'center',
     },
     iconsHolder: {
         flexDirection: 'row',
-        justifyContent: "space-around", // Evenly distributes icons
+        justifyContent: "space-evenly",
         alignItems: 'center',
-        width: '100%', // Ensures full-width usage
-        alignSelf: 'center', // Centers within the container
+        width: '100%',
+        alignSelf: 'center',
     },
     icons: {
-        width: 35,
-        height: 35
+        width: 30, // Slightly smaller icons
+        height: 30
     },
     iconHolder: {
-        flex: 1, // Allows flexibility in centering
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
         fontWeight: "100",
         marginTop: 5,
         color: "#ddd",
-        textAlign: 'center', // Ensures text is centered below icons
+        textAlign: 'center',
     }
-})
+});
 
 export default styles;
