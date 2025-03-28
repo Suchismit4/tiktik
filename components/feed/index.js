@@ -93,10 +93,10 @@ export default function Feed() {
 
       <SafeAreaView style={styles.overlayTop}>
         <Navbar />
-        <Text>Scroll Depth: {maxScrollDepth}</Text>
+        {/* <Text>Scroll Depth: {maxScrollDepth}</Text>
         {Object.entries(timeSpent).map(([contentId, time]) => (
           <Text key={contentId}>Content {contentId} - Time Spent: {time}ms</Text>
-        ))}
+        ))} */}
       </SafeAreaView>
 
       <SafeAreaView style={styles.overlayBottom}>
