@@ -40,12 +40,48 @@ const styles = StyleSheet.create({
     },
     postinfo: {
       position: 'absolute',
-      bottom: "17%", // Adjust according to your design
+      bottom: "17%",
       width: "70%",
       left: 33,
       right: 0,
-      zIndex: 10, // Ensure it's above the gradient
-    }
+      zIndex: 10, 
+    }, surveyContainer: {
+      position: 'absolute',
+      top: '30%', // Adjust for better positioning
+      left: '10%',
+      right: '10%',
+      backgroundColor: 'white',
+      padding: 20,
+      borderRadius: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 5,
+      zIndex: 999, // Ensure it appears above all elements
+      alignItems: 'center',
+    },
+    
+    surveyTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 10,
+    },
+    
+    surveyOptions: {
+      marginTop: 10,
+    },
+    
+    surveyOption: {
+      fontSize: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      backgroundColor: '#007bff',
+      color: 'white',
+      borderRadius: 5,
+      textAlign: 'center',
+      marginBottom: 5,
+    }    
   });
   
   
