@@ -1,15 +1,30 @@
-import React, { useRef, useState } from 'react';
-import { FlatList, SafeAreaView, Text, View, Dimensions } from 'react-native';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import {
+  FlatList,
+  SafeAreaView,
+  Text,
+  View,
+  Dimensions,
+  TouchableOpacity,
+  AppState,
+} from 'react-native';
 import Post from '../post';
 import Navbar from '../navbar';
 import BottomBar from '../bottomBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import styles from './style';
 
-const { height } = Dimensions.get("window"); // Get full screen height
+const { height } = Dimensions.get('window');
 
 export default function Feed() {
   const mediaRefs = useRef({});
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [maxScrollDepth, setMaxScrollDepth] = useState(0);
+  const [timeSpent, setTimeSpent] = useState({});
+  const [videoCount, setVideoCount] = useState(0);
+  const lastViewedRef = useRef({ startTime: null, contentId: null });
+  const flatListRef = useRef(null);
+
   const array = [
     { id: 1, uri: 'https://drive.google.com/uc?export=download&id=1567uKxxJx9J5uvf0BbLU-Qipe0YZZl39' },
     { id: 2, uri: 'https://drive.google.com/uc?export=download&id=17QAoPwiSeQjm-v8uO3gp7BymemHCzh_T' },
@@ -20,23 +35,29 @@ export default function Feed() {
     { id: 7, uri: 'https://drive.google.com/uc?export=download&id=1pqHpIZuIR3rCDhdYJkDB6BOYEcwV7ejG' },
   ];
 
-  const [maxScrollDepth, setMaxScrollDepth] = useState(0);
-  const [timeSpent, setTimeSpent] = useState({}); // Track time spent on each content
-  const lastViewedRef = useRef({ startTime: null, contentId: null }); // Track last viewed content
-
-  const flatListRef = useRef(null); // added
-
-  // added this
-  const onFactsPress = () => {
-    console.log("Facts button clicked!");
-    // Add any additional logic you want to handle here
+  const handleSurveySubmit = () => {
+    setShowSurvey(false);
   };
 
-  // Viewable item handler to track media play/pause and time spent on content
+  useEffect(() => {
+    const appStateListener = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'inactive' || nextAppState === 'background') {
+        setShowSurvey(true);
+      }
+    });
+
+    return () => {
+      appStateListener.remove();
+    };
+  }, []);
+
+  const onFactsPress = () => {
+    console.log('Facts button clicked!');
+  };
+
   const onViewableItemsChanged = useRef(({ viewableItems, changed }) => {
     const currentTime = Date.now();
 
-    // Stop timing for last viewed content
     if (lastViewedRef.current.contentId !== null) {
       const lastContentId = lastViewedRef.current.contentId;
       const duration = currentTime - lastViewedRef.current.startTime;
@@ -46,43 +67,45 @@ export default function Feed() {
       }));
     }
 
-    // Start timing for the new viewed content
     if (viewableItems.length > 0) {
-      const newContentId = viewableItems[0].key; // Assuming each item has a unique key
+      const newContentId = viewableItems[0]?.key;
       lastViewedRef.current = { startTime: currentTime, contentId: newContentId };
     }
 
-    // Track scroll depth (deepest visible item)
     if (viewableItems.length > 0) {
       const deepestItem = viewableItems[viewableItems.length - 1].index;
       setMaxScrollDepth((prevDepth) => Math.max(prevDepth, deepestItem));
     }
 
-    // Control media play/pause based on visibility
+    if (viewableItems.length > 0) {
+      const currentIndex = viewableItems[0]?.index;
+      if (currentIndex !== undefined) {
+        setVideoCount((prevCount) => {
+          if ((prevCount + 1) % 5 === 0) {
+            setShowSurvey(true);
+          }
+          return prevCount + 1;
+        });
+      }
+    }
+
     changed.forEach((element) => {
       const cell = mediaRefs.current[element.key];
       if (cell) {
-        if (element.isViewable) {
-          cell.play();  // Play the media when the item is viewable
-        } else {
-          cell.pause();  // Pause the media when the item is not viewable
-        }
+        element.isViewable ? cell.play() : cell.pause();
       }
     });
   });
 
-  // Render each post in the list
-  //added this
-  const renderItem = ({ item }) => (
-    <View style={{ height: Dimensions.get('window').height }}>
-      {/* add */}
+  const renderItem = useCallback(({ item }) => (
+    <View style={{ height }}>
       <Post
         ref={(PostSingleRef) => (mediaRefs.current[item.id.toString()] = PostSingleRef)}
         uri={item.uri}
-        onFactsPress={onFactsPress}  // Passing the function
+        onFactsPress={onFactsPress}
       />
     </View>
-  );
+  ), []);
 
   return (
     <View style={styles.container}>
@@ -92,28 +115,25 @@ export default function Feed() {
         initialNumToRender={1}
         maxToRenderPerBatch={2}
         removeClippedSubviews
-        viewabilityConfig={{
-          itemVisiblePercentThreshold: 30,
-        }}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 30 }}
         renderItem={renderItem}
-
-        // added this
         snapToInterval={height}
         decelerationRate="fast"
         snapToAlignment="start"
-        pagingEnabled={true}
-
+        pagingEnabled
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged.current}
       />
-      
-      {/* Ensure Facts Button is Above Everything */}
+
+      {/* Facts Button */}
       <View style={styles.factsButtonContainer}>
-        <Text style={styles.factsButton}>Facts</Text>
+        <TouchableOpacity onPress={onFactsPress}>
+          <Text style={styles.factsButton}>Facts</Text>
+        </TouchableOpacity>
       </View>
-  
-      {/* Overlay at the top for navbar */}
+
+      {/* Navbar & Stats */}
       <SafeAreaView style={styles.overlayTop}>
         <Navbar />
         <Text>Scroll Depth: {maxScrollDepth}</Text>
@@ -121,12 +141,30 @@ export default function Feed() {
           <Text key={contentId}>Content {contentId} - Time Spent: {time}ms</Text>
         ))}
       </SafeAreaView>
-  
-      {/* Bottom Bar should always be visible */}
+
+      {/* Bottom Bar */}
       <SafeAreaView style={styles.overlayBottom}>
         <BottomBar />
       </SafeAreaView>
+
+      {/* Survey Overlay */}
+      {showSurvey && <SurveyForm onSubmit={handleSurveySubmit} />}
     </View>
   );
-  
 }
+
+const SurveyForm = ({ onSubmit }) => {
+  return (
+    <View style={styles.surveyContainer}>
+      <Text style={styles.surveyTitle}>Quick Survey</Text>
+      <Text>Insert survey question</Text>
+      <View style={styles.surveyOptions}>
+        {['Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5'].map((option) => (
+          <TouchableOpacity key={option} onPress={onSubmit}>
+            <Text style={styles.surveyOption}>{option}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
