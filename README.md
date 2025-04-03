@@ -56,7 +56,7 @@ To run this application, you'll need:
 
 3. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/tiktik.git
+   git clone https://github.com/suchismit4/tiktik.git
    cd tiktik
    ```
 
