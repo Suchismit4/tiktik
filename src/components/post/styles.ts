@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
   videoPlayer: {
     ...StyleSheet.absoluteFillObject, // Shortcut for position:'absolute', top:0, bottom:0, left:0, right:0
     backgroundColor: '#000', // Optional: Show black background while video loads
-},
+  },
   postinfo: {
     position: 'absolute',
     left: 33,
@@ -24,46 +24,31 @@ const styles = StyleSheet.create({
     width: "70%",
     zIndex: 10
   },
-  // Heart animation styles for double-tap
-  // heartContainer: {
-  //   position: 'absolute',
-  //   top: 0,
-  //   left: 0,
-  //   right: 0,
-  //   bottom: 0,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   zIndex: 5,
-  // },
-  // heartIcon: {
-  //   width: 100,
-  //   height: 100,
-  //   tintColor: '#ffffff', // White heart
-  //   shadowColor: '#000',
-  //   shadowOffset: { width: 0, height: 0 },
-  //   shadowOpacity: 0.3,  // Reduced from 0.5 for a subtler shadow
-  //   shadowRadius: 3,     // Reduced from 5 for a less diffuse shadow
-  // },
-  tapHeartBase: {
+  gradientOverlay: {
     position: 'absolute',
-    zIndex: 20, // Ensure hearts are above video/gradient but potentially below modals
-    // Dimensions defined in tapHeartIcon
-    // Left/Top positioning is done inline using state
-     alignItems: 'center', // Center the inner elements if needed
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '50%', // Adjust gradient height
+    zIndex: 1, // Below controls/info, above video
+  },
+  flyingHeartBase: {
+    position: 'absolute',
+    zIndex: 20, // Above video/gradient, below facts panel
+    // Width/Height defined in flyingHeartIcon
+    alignItems: 'center',
     justifyContent: 'center',
-},
-tapHeartIcon: {
-    width: 80, // Size of the hearts
+  },
+  // --- NEW Style for the flying heart image itself ---
+  flyingHeartIcon: {
+    width: 80, // Adjust size as desired
     height: 80,
-    tintColor: '#FF0000', // TikTok Red color for the heart
-    // Add shadow for better visibility if needed
+    tintColor: '#FF0000', // Red heart (or use a pre-colored image)
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 3,
-    // Note: tintColor might not work with all image types (esp. complex SVGs).
-    // If it doesn't work, use a pre-colored red heart image.
-},
+  },
   factsSection: {
     position: 'absolute',
     bottom: 0,
