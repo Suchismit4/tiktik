@@ -350,13 +350,13 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) {
       // Video is not loaded or has encountered an error
-      if (status.error) {
-        console.error(`[Post ${componentId}] Playback Error:`, status.error);
-        setIsLoading(false); // Hide loader on error
-      } else {
-        // Still loading or unloaded state
-        setIsLoading(true);
-      }
+      // if (status.error) {
+      //   console.error(`[Post ${componentId}] Playback Error:`, status.error);
+      //   setIsLoading(false); // Hide loader on error
+      // } else {
+      //   // Still loading or unloaded state
+      //   setIsLoading(true);
+      // }
     } else {
       // Video is loaded
       if (status.isBuffering) {
