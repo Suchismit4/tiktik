@@ -12,14 +12,13 @@
  * allowing the Feed screen to control video playback when items scroll in/out of view.
  */
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { View, Text, SafeAreaView, Animated, TouchableOpacity, Dimensions, Image, Easing } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { View, Text, SafeAreaView, Animated, TouchableOpacity, Dimensions, Image, Easing, ActivityIndicator, Platform } from 'react-native';
+import { Video, ResizeMode, AVPlaybackStatus }  from 'expo-av'
 import {
   GestureHandlerRootView,
   TapGestureHandler,
   State,
   PanGestureHandler,
-  LongPressGestureHandler
 } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import styles from './styles';
@@ -101,6 +100,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
 
   // Add a state to track if the component is ready for gestures
   const [gesturesReady, setGesturesReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const visualLikePending = useRef(false);
 
@@ -142,10 +142,10 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
     // This provides instant feedback even if the color change is delayed.
     if (wasJustLiked) {
       Animated.sequence([
-          Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-          Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
+        Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+        Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
       ]).start();
-  }
+    }
 
 
     // Animation Sequence:
@@ -196,7 +196,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       }
 
       if (isMounted.current) {
-          setFlyingHeart(null);
+        setFlyingHeart(null);
       }
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
@@ -228,7 +228,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       console.log(`[Post ${componentId}] [DoubleTap] Triggered at X: ${absoluteX}, Y: ${absoluteY}`);
       triggerFlyToLikeAnimation(absoluteX, absoluteY);
     } else if (event.nativeEvent.state === State.ACTIVE && flyingHeart !== null) {
-        console.log(`[Post ${componentId}] [DoubleTap] Ignored, animation already in progress.`);
+      console.log(`[Post ${componentId}] [DoubleTap] Ignored, animation already in progress.`);
     }
   };
 
@@ -254,8 +254,8 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Trigger bounce animation for direct tap
       Animated.sequence([
-          Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-          Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
+        Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+        Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
       ]).start();
     } else {
       // Reset scale immediately if unliking via button
@@ -339,12 +339,35 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       console.log(`[Post ${componentId}] Imperative Unload`);
       try {
         await videoRef.current.unloadAsync();
+        setIsLoading(true);
       } catch (e) {
         console.log(`[Post ${componentId}] Error unloading video:`, e);
       }
     }
-  }), [componentId]); // Add componentId dependency if needed
+  }), [componentId]);
 
+
+  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) {
+      // Video is not loaded or has encountered an error
+      if (status.error) {
+        console.error(`[Post ${componentId}] Playback Error:`, status.error);
+        setIsLoading(false); // Hide loader on error
+      } else {
+        // Still loading or unloaded state
+        setIsLoading(true);
+      }
+    } else {
+      // Video is loaded
+      if (status.isBuffering) {
+        // Video is buffering
+        setIsLoading(true);
+      } else {
+        // Video is ready to play or playing
+        setIsLoading(false);
+      }
+    }
+  };
   /**
    * Setup effect to ensure gesture handlers are properly initialized
    */
@@ -353,6 +376,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
     console.log(`[Post ${componentId}] Component mounted.`);
     isMounted.current = true;
     setGesturesReady(false); // Gestures not ready initially
+    setIsLoading(true);
 
     const readyTimer = setTimeout(() => {
       if (isMounted.current) {
@@ -502,8 +526,27 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
                 shouldPlay={false}
                 isLooping
                 source={{ uri: data.uri }}
-                onError={(error) => console.error(`[Post ${componentId}] Video Error:`, error)}
+                onError={(error) => {
+                  console.error(`[Post ${componentId}] Video Error:`, error);
+                  setIsLoading(false); // Hide loader on error
+                }}
+                // *** Playback Status Update Listener ***
+                onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+                onLoadStart={() => {
+                  console.log(`[Post ${componentId}] onLoadStart`);
+                  setIsLoading(true);
+                }}
+                onLoad={(status) => {
+                  console.log(`[Post ${componentId}] onLoad fired`);
+                }}
               />
+
+              {/* *** Loading Indicator Overlay *** */}
+              {isLoading && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#FFFFFF" />
+                  </View>
+               )}
 
               {/* --- Animated Flying Heart --- */}
               {flyingHeart && (
@@ -549,12 +592,12 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
 
       {/* Interactive controls overlay (like button, facts button, etc.) */}
       < Controls
-         // *** Pass the visualLikedState to control the button's appearance ***
-         liked={visualLikedState}
-         scale={controlsScaleAnim}
-         onLikePress={onLikePress}
-         onFactsPress={toggleFacts}
-         likeCount={data.likes + (liked ? 1 : 0) - (visualLikedState ? 1 : 0)}
+        // *** Pass the visualLikedState to control the button's appearance ***
+        liked={visualLikedState}
+        scale={controlsScaleAnim}
+        onLikePress={onLikePress}
+        onFactsPress={toggleFacts}
+        likeCount={data.likes + (liked ? 1 : 0) - (visualLikedState ? 1 : 0)}
       />
 
       {/* Post information overlay (caption, source) */}

@@ -12,10 +12,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: height, // Ensure each item fills the screen height
   },
-  videoPlayer: {
-    ...StyleSheet.absoluteFillObject, // Shortcut for position:'absolute', top:0, bottom:0, left:0, right:0
-    backgroundColor: '#000', // Optional: Show black background while video loads
-  },
   postinfo: {
     position: 'absolute',
     left: 33,
@@ -95,6 +91,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#333',
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject, // Cover the entire video area
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Optional semi-transparent background
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1, // Ensure it's above the video but below controls/hearts
+  },
+  videoPlayer: { // Ensure video player also uses absoluteFillObject or similar
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000', // Show black while truly loading
   }
 });
 
