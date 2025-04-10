@@ -83,7 +83,7 @@ const Controls: React.FC<ControlsProps> = ({
         <TouchableOpacity onPress={onLikePress} accessible={true} accessibilityLabel="Like button"> 
           {/* Animated heart that scales on double-tap */}
           <Animated.View style={{ transform: [{ scale }] }}>
-            <Animated.Image
+            <Image
               style={styles.button} 
               source={{ uri: likeIconURI }} 
             />

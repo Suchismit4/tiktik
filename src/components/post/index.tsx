@@ -82,18 +82,13 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
   // Track mount state to fix potential gesture handler issues
   const isMounted = useRef(true);
 
-  // State to track if the post is liked by the user
+  // 'liked' tracks the internal/optimistic like state immediately
   const [liked, setLiked] = useState<boolean>(false);
+  // 'visualLikedState' controls the prop passed to Controls, updated with delay on double-tap
+  const [visualLikedState, setVisualLikedState] = useState<boolean>(false);
 
-  // --- NEW STATE for Tap Hearts ---
   const [flyingHeart, setFlyingHeart] = useState<FlyingHeartState | null>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null); // To manage cleanup
-
-  // Animated value for the heart scale animation when double-tapped
-  // const scaleValue = useRef(new Animated.Value(1)).current;
-
-  // Animated opacity value for the heart animation
-  // const opacityValue = useRef(new Animated.Value(0)).current;
 
   // Animated value for sliding the facts panel up/down
   const factsSlideAnim = useRef(new Animated.Value(0)).current;
@@ -107,33 +102,33 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
   // Add a state to track if the component is ready for gestures
   const [gesturesReady, setGesturesReady] = useState(false);
 
+  const visualLikePending = useRef(false);
+
   /**
    * Trigger the heart animation that flies towards the like button.
    */
   const triggerFlyToLikeAnimation = (startX: number, startY: number) => {
-    let likedStateChanged = false;
+    let wasJustLiked = false; // Flag to track if this specific tap caused the like
     if (!liked) {
       setLiked(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      likedStateChanged = true; // Flag that we just liked it
+      wasJustLiked = true;
+      visualLikePending.current = true;
+      console.log(`[Post ${componentId}] Setting visualLikePending.current = true`);
     }
 
+
     // --- TARGET POSITION ESTIMATION ---
-    // Estimate the center of the like button in Controls component.
-    // Adjust these values based on your Controls component's actual styling/positioning.
     const likeButtonSize = 60; // Approximate size of the touchable area for the like button
-    const likeButtonMarginRight = 15;
-    const likeButtonBottomOffset = 150; // Approximate distance from bottom (adjust as needed)
+    const likeButtonMarginRight = 40;
+    const likeButtonBottomOffset = 160; // Approximate distance from bottom
 
     const targetX = screenWidth - likeButtonMarginRight - (likeButtonSize / 2);
     const targetY = screenHeight - likeButtonBottomOffset - (likeButtonSize / 2) - 50; // Adjust Y target position
 
-    // console.log(`[Post ${componentId}] Animation Start: (${startX}, ${startY}), Target: (${targetX}, ${targetY})`);
-
-
     const heartId = Date.now();
     // Use ValueXY for position. Initial position needs adjustment to center the heart on the tap.
-    const heartSize = styles.flyingHeartIcon.width; // Use defined size
+    const heartSize = styles.flyingHeartIcon.width;
     const initialX = startX - heartSize / 2;
     const initialY = startY - heartSize / 2;
     const position = new Animated.ValueXY({ x: initialX, y: initialY });
@@ -143,36 +138,38 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
     const newHeart: FlyingHeartState = { id: heartId, position, scale, opacity };
     setFlyingHeart(newHeart); // Render the heart
 
-    // Trigger the bounce animation on the Controls' like button *immediately* if the state changed
-    if (likedStateChanged) {
+    // Trigger the bounce animation on the Controls' like button immediately if liked state changed
+    // This provides instant feedback even if the color change is delayed.
+    if (wasJustLiked) {
       Animated.sequence([
-        Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-        Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
+          Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+          Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
       ]).start();
-    }
+  }
 
 
     // Animation Sequence:
     // 1. Scale Up Quickly
     // 2. Parallel: Move to Target + Fade Out + Scale Down
+
+    // May have to fix this!!
     Animated.sequence([
       // 1. Initial Pop / Scale Up
       Animated.spring(scale, {
-        toValue: 1.2, // Scale up bigger initially
+        toValue: 1.1, // Scale up bigger initially
         friction: 3,
         tension: 80,
         useNativeDriver: false, // Scale is safe for native driver
       }),
-      // Add a small delay before moving? (Optional)
+      // Add a small delay before moving?
       // Animated.delay(50),
 
       // 2. Fly towards button while fading and shrinking
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: targetX, y: targetY },
-          duration: 700, // Adjust duration for speed
+          duration: 700,
           easing: Easing.bezier(0.42, 0, 0.58, 1), // Ease-in-out curve
-          //   easing: Easing.bezier(0.6, -0.28, 0.735, 0.045), // EaseInBack for a slight curve start
           useNativeDriver: false, // Position changes often need this false unless using translate
         }),
         Animated.timing(opacity, {
@@ -192,10 +189,15 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
     ]).start(() => {
       // Animation complete: Remove the heart
       console.log(`[Post ${componentId}] Fly-to-like animation finished.`);
-      if (isMounted.current) {
-        setFlyingHeart(null);
+      // Update the VISUAL state only if this tap caused the like
+      if (wasJustLiked && liked) {
+        console.log(`[Post ${componentId}] Setting visual liked state to true AFTER animation.`);
+        setVisualLikedState(true);
       }
-      // Clear the fallback timeout
+
+      if (isMounted.current) {
+          setFlyingHeart(null);
+      }
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
         animationTimeoutRef.current = null;
@@ -207,7 +209,6 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       clearTimeout(animationTimeoutRef.current);
     }
 
-    // Fallback cleanup: Ensure heart is removed if animation hangs or component unmounts badly
     animationTimeoutRef.current = setTimeout(() => {
       if (isMounted.current) {
         setFlyingHeart(null);
@@ -221,15 +222,13 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
    * Handles double-tap gesture on the video
    */
   const onDoubleTap = (event: any) => {
-    console.log(`[Post ${componentId}] [DoubleTap] State:`, event.nativeEvent.state, 'State.ACTIVE:', State.ACTIVE);
-
-    if (event.nativeEvent.state === State.ACTIVE) {
-      // Use absolute coordinates which are relative to the screen
+    // Add check to prevent triggering if animation is already running
+    if (event.nativeEvent.state === State.ACTIVE && flyingHeart === null) {
       const { absoluteX, absoluteY } = event.nativeEvent;
       console.log(`[Post ${componentId}] [DoubleTap] Triggered at X: ${absoluteX}, Y: ${absoluteY}`);
-
-      // --- Trigger the NEW fly-to-like animation ---
       triggerFlyToLikeAnimation(absoluteX, absoluteY);
+    } else if (event.nativeEvent.state === State.ACTIVE && flyingHeart !== null) {
+        console.log(`[Post ${componentId}] [DoubleTap] Ignored, animation already in progress.`);
     }
   };
 
@@ -239,35 +238,31 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
    */
   const onSingleTap = (event: any) => {
     console.log(`[Post ${componentId}] [SingleTap] State:`, event.nativeEvent.state);
-    // Optional: Add functionality for single tap
-    // This is mainly here to improve double tap recognition
   };
 
-  /**
-   * Toggles the liked state when the like button is pressed
-   * This is called from the Controls component
-   */
-  // const onLikePress = () => {
-  //   setLiked(prevLiked => !prevLiked);
-  // };
-
   const onLikePress = () => {
-    // Toggle liked state - this controls the side button via Controls component
     const newLikedState = !liked;
+    // Update BOTH states immediately when the button is pressed directly
     setLiked(newLikedState);
+    setVisualLikedState(newLikedState);
+
+    // *** Reset the pending flag on direct interaction ***
+    visualLikePending.current = false;
+    console.log(`[Post ${componentId}] Like button pressed. Liked: ${newLikedState}`);
+
     if (newLikedState) {
-      // Liked via button press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Trigger bounce animation
+      // Trigger bounce animation for direct tap
       Animated.sequence([
-        Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-        Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
+          Animated.timing(controlsScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+          Animated.timing(controlsScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true })
       ]).start();
     } else {
-      // Unliked via button press - Reset scale immediately (optional)
+      // Reset scale immediately if unliking via button
       controlsScaleAnim.setValue(1);
     }
   };
+
 
 
   /**
@@ -359,7 +354,6 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
     isMounted.current = true;
     setGesturesReady(false); // Gestures not ready initially
 
-    // Simplified gesture readiness logic
     const readyTimer = setTimeout(() => {
       if (isMounted.current) {
         console.log(`[Post ${componentId}] Marking gestures as ready.`);
@@ -384,7 +378,26 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       // Unload video
       videoRef.current?.unloadAsync().catch(e => console.log("Unmount Unload Error:", e));
     };
-  }, [data.uri, componentId, flyingHeart]);
+  }, [data.uri, componentId, flyingHeart, liked]);
+
+  useEffect(() => {
+    // This effect runs when `flyingHeart` or `liked` changes.
+    // We are interested in when `flyingHeart` becomes null *after* an animation.
+    if (flyingHeart === null && visualLikePending.current) {
+      console.log(`[useEffect ${componentId}] Animation finished (flyingHeart is null) and visual like is pending.`);
+
+      // Double-check the optimistic state hasn't changed back
+      if (liked) {
+        console.log(`[useEffect ${componentId}] Liked state is still true. Setting visualLikedState = true.`);
+        setVisualLikedState(true);
+      } else {
+        console.log(`[useEffect ${componentId}] Liked state is now false (user unliked?). Not updating visual state.`);
+      }
+      // Reset the pending flag regardless
+      visualLikePending.current = false;
+      console.log(`[useEffect ${componentId}] Reset visualLikePending.current = false`);
+    }
+  }, [flyingHeart, liked, componentId]); // Depend on flyingHeart and liked state
 
   /**
    * Add effect to specifically monitor and refresh gesture handlers when component remounts
@@ -456,7 +469,6 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* Fix double tap recognition with proper gesture handler nesting */}
       {/* Single Tap layer (outer) */}
       <TapGestureHandler
         ref={singleTapRef}
@@ -476,11 +488,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
           <TapGestureHandler
             ref={doubleTapRef}
             numberOfTaps={2}
-            onHandlerStateChange={(event) => {
-              if (isMounted.current && gesturesReady) {
-                onDoubleTap(event);
-              }
-            }}
+            onHandlerStateChange={onDoubleTap}
             maxDurationMs={300} // Time between taps
             shouldCancelWhenOutside={false}
             enabled={gesturesReady}
@@ -541,11 +549,12 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
 
       {/* Interactive controls overlay (like button, facts button, etc.) */}
       < Controls
-        liked={liked}
-        scale={controlsScaleAnim}
-        onLikePress={onLikePress}
-        onFactsPress={toggleFacts}
-        likeCount={data.likes}
+         // *** Pass the visualLikedState to control the button's appearance ***
+         liked={visualLikedState}
+         scale={controlsScaleAnim}
+         onLikePress={onLikePress}
+         onFactsPress={toggleFacts}
+         likeCount={data.likes + (liked ? 1 : 0) - (visualLikedState ? 1 : 0)}
       />
 
       {/* Post information overlay (caption, source) */}
