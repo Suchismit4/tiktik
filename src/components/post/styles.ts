@@ -20,25 +20,30 @@ const styles = StyleSheet.create({
     width: "70%",
     zIndex: 10
   },
-  // Heart animation styles for double-tap
-  heartContainer: {
+  gradientOverlay: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 5,
+    height: '50%', // Adjust gradient height
+    zIndex: 1, // Below controls/info, above video
   },
-  heartIcon: {
-    width: 100,
-    height: 100,
-    tintColor: '#ffffff', // White heart
+  flyingHeartBase: {
+    position: 'absolute',
+    zIndex: 20, // Above video/gradient, below facts panel
+    // Width/Height defined in flyingHeartIcon
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // --- NEW Style for the flying heart image itself ---
+  flyingHeartIcon: {
+    width: 80, // Adjust size as desired
+    height: 80,
+    tintColor: '#FF0000', // Red heart (or use a pre-colored image)
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,  // Reduced from 0.5 for a subtler shadow
-    shadowRadius: 3,     // Reduced from 5 for a less diffuse shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
   },
   factsSection: {
     position: 'absolute',
@@ -86,6 +91,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#333',
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject, // Cover the entire video area
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Optional semi-transparent background
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1, // Ensure it's above the video but below controls/hearts
+  },
+  videoPlayer: { // Ensure video player also uses absoluteFillObject or similar
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000', // Show black while truly loading
   }
 });
 
