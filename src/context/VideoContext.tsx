@@ -4,9 +4,10 @@
  * Provides video data and analytics throughout the application.
  * Tracks user interaction metrics like watch time and scroll depth.
  */
-import React, { createContext, useState, useContext, ReactNode, useRef, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useRef, useCallback, useEffect } from 'react';
 import { Post, SurveyResponse } from '../types';
 import { VIDEOS } from '../constants/videos';
+import { postsApi } from '../services/api';
 
 // Video context interface
 interface VideoContextType {
@@ -50,7 +51,9 @@ interface VideoProviderProps {
  */
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
   // State for video data and analytics
-  const [videos] = useState<Post[]>(VIDEOS);
+  // CHANGE "[]" WITH "VIDEOS" WHEN NOT USING API
+  // AND "VIDEOS" with "[]" WHEN USING API
+  const [videos, setVideos] = useState<Post[]>([]);
   const [timeSpent, setTimeSpent] = useState<Record<string, number>>({});
   const [maxScrollDepth, setMaxScrollDepth] = useState<number>(0);
   const [videoCount, setVideoCount] = useState<number>(0);
@@ -61,6 +64,18 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
     startTime: null,
     contentId: null,
   });
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const data = await postsApi.getPosts();
+        setVideos(data);
+      } catch (error) {
+        console.error('Failed to fetch videos:', error);
+      }
+    };
+    fetchVideos();
+  }, []);
 
   /**
    * Update time spent on a video

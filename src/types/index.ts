@@ -12,6 +12,8 @@ export interface Post {
   caption?: string;
   source?: PostSource;
   likes?: number;
+  facts?: string[];
+  tags?: string[];
 }
 
 /**
@@ -19,7 +21,7 @@ export interface Post {
  */
 export interface PostSource {
   name: string;
-  imageUri?: string;
+  imageuri?: string;
 }
 
 /**

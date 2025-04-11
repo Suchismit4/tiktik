@@ -15,9 +15,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 3800
+    likes: 3800,
+    facts: [],
+    tags: []
   },
   { 
     id: 2, 
@@ -25,9 +27,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 2500
+    likes: 2500,
+    facts: [],
+    tags: []
   },
   { 
     id: 3, 
@@ -35,9 +39,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 1900
+    likes: 1900,
+    facts: [],
+    tags: []
   },
   { 
     id: 4, 
@@ -45,9 +51,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 4200
+    likes: 4200,
+    facts: [],
+    tags: []
   },
   { 
     id: 5, 
@@ -55,9 +63,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 3100
+    likes: 3100,
+    facts: [],
+    tags: []
   },
   { 
     id: 6, 
@@ -65,9 +75,11 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 2800
+    likes: 2800,
+    facts: [],
+    tags: []
   },
   { 
     id: 7, 
@@ -75,8 +87,10 @@ export const VIDEOS: Post[] = [
     caption: 'A short caption similar to explanatory headline.',
     source: {
       name: 'USA Today',
-      imageUri: 'https://i.imgur.com/P8OOZMm.png'
+      imageuri: 'https://i.imgur.com/P8OOZMm.png'
     },
-    likes: 3500
+    likes: 3500,
+    facts: [],
+    tags: []
   },
 ]; 
