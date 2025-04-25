@@ -101,7 +101,7 @@ export const endVideoView = () => {
     trackEvent('video_end', { 
       videoId: currentVideo, 
       duration, 
-      completed: duration > 5000 // Consider completed if watched for more than 5 seconds
+      completed: duration > 1000 // Consider completed if watched for more than 1 second
     });
     
     // Reset tracking variables

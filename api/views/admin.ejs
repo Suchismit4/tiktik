@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            light: '#63a4ff',
+                            DEFAULT: '#1976d2',
+                            dark: '#004ba0',
+                        },
+                        secondary: {
+                            light: '#ff5983',
+                            DEFAULT: '#f50057',
+                            dark: '#bb002f',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Roboto', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'elevation-1': '0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12)',
+                        'elevation-2': '0 3px 1px -2px rgba(0,0,0,0.2), 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12)',
+                        'elevation-4': '0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12)',
+                        'elevation-8': '0 5px 5px -3px rgba(0,0,0,0.2), 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12)',
+                    }
+                },
+            },
+        }
+    </script>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Additional styles for Tailwind integration */
+        .material-ripple {
+            position: relative;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+        }
+        
+        .material-ripple:after {
+            content: "";
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .4s, opacity 0.8s;
+        }
+        
+        .material-ripple:active:after {
+            transform: scale(0, 0);
+            opacity: .3;
+            transition: 0s;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="top-navbar flex items-center px-4 bg-primary text-white">
+            <button id="menu-toggle" class="btn btn-icon mr-4 material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                <i class="material-icons">menu</i>
+            </button>
+            <div class="top-navbar-title text-xl font-medium">Experiment Management Dashboard</div>
+            <div class="flex items-center gap-4 ml-auto">
+                <button id="schedule-experiment-btn" class="btn btn-primary flex items-center gap-2 py-2 px-4 rounded-md bg-white text-primary hover:bg-gray-100 transition-colors duration-200 shadow-elevation-1">
+                    <i class="material-icons text-sm">add</i>
+                    <span class="font-medium text-sm">Schedule</span>
+                </button>
+                <button class="btn btn-icon material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">notifications</i>
+                </button>
+                <button class="btn btn-icon material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">account_circle</i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar bg-white">
+            <nav class="sidebar-menu py-2">
+                <a href="#" class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">dashboard</i>
+                    Dashboard
+                </a>
+                <a href="#" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">science</i>
+                    Experiments
+                </a>
+                <a href="#" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">analytics</i>
+                    Analytics
+                </a>
+                <a href="#" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">people</i>
+                    Participants
+                </a>
+                <a href="#" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">settings</i>
+                    Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content bg-gray-50">
+            <!-- Active Experiments Card -->
+            <div class="card bg-white rounded-lg shadow-elevation-1 mb-8">
+                <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
+                    <div class="card-title text-xl font-medium text-gray-800">Active Experiments</div>
+                    <div class="flex items-center gap-3">
+                        <button class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+                            <i class="material-icons text-sm">filter_list</i>
+                            <span class="font-medium text-sm">Filter</span>
+                        </button>
+                        <button class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+                            <i class="material-icons text-sm">sort</i>
+                            <span class="font-medium text-sm">Sort</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content p-0">
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% const activeExperiments = experiments.filter(exp => exp.status === 'Running'); %>
+                                <% if (activeExperiments && activeExperiments.length > 0) { %>
+                                    <% activeExperiments.forEach(exp => { %>
+                                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                            <td class="py-4 px-6 whitespace-nowrap font-medium text-gray-800"><%= exp.name %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.type %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap">
+                                                <span class="status-chip status-running inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    <span class="h-2 w-2 mr-1.5 rounded-full bg-green-400"></span>
+                                                    <%= exp.status %>
+                                                </span>
+                                            </td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.startDate %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.endDate %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap flex gap-3">
+                                                <button class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">View</button>
+                                                <form action="/admin/download/<%= exp.id %>" method="POST" class="inline">
+                                                    <button type="submit" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">Download</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="py-4 px-6 text-center text-gray-500">No active experiments found.</td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Past Experiments Card -->
+            <div class="card bg-white rounded-lg shadow-elevation-1">
+                <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
+                    <div class="card-title text-xl font-medium text-gray-800">Completed Experiments</div>
+                </div>
+                <div class="card-content p-0">
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                                    <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% const completedExperiments = experiments.filter(exp => exp.status === 'Completed'); %>
+                                <% if (completedExperiments && completedExperiments.length > 0) { %>
+                                    <% completedExperiments.forEach(exp => { %>
+                                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                            <td class="py-4 px-6 whitespace-nowrap font-medium text-gray-800"><%= exp.name %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.type %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap">
+                                                <span class="status-chip status-completed inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                    <span class="h-2 w-2 mr-1.5 rounded-full bg-gray-400"></span>
+                                                    <%= exp.status %>
+                                                </span>
+                                            </td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.startDate %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.endDate %></td>
+                                            <td class="py-4 px-6 whitespace-nowrap flex gap-3">
+                                                <button class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">View Results</button>
+                                                <form action="/admin/download/<%= exp.id %>" method="POST" class="inline">
+                                                    <button type="submit" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">Download</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="py-4 px-6 text-center text-gray-500">No completed experiments found.</td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile FAB for adding new experiment -->
+        <button id="mobile-add-btn" class="btn-fab bg-secondary text-white flex items-center justify-center shadow-elevation-8 transition-all duration-300 hover:shadow-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2">
+            <i class="material-icons">add</i>
+        </button>
+    </div>
+
+    <!-- Schedule Experiment Modal -->
+    <div id="schedule-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
+        <div class="modal bg-white rounded-lg shadow-elevation-8 max-w-lg w-full max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95 opacity-0" id="modal-content">
+            <div class="modal-header py-4 px-6 flex items-center justify-between border-b border-gray-200">
+                <div class="modal-title text-xl font-medium text-gray-800">Schedule New Experiment</div>
+                <button id="close-modal" class="btn btn-icon text-gray-500 hover:bg-gray-100 rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            <form action="/admin/schedule" method="POST">
+                <div class="modal-content p-6 overflow-y-auto">
+                    <div class="form-group mb-5">
+                        <label for="experimentName" class="form-label block text-sm font-medium text-gray-700 mb-1">Experiment Name</label>
+                        <input type="text" id="experimentName" name="experimentName" class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" required>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="experimentType" class="form-label block text-sm font-medium text-gray-700 mb-1">Experiment Type</label>
+                        <select id="experimentType" name="experimentType" class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white" required>
+                            <option value="A/B Test">A/B Test</option>
+                            <option value="Survey">Survey</option>
+                            <option value="Behavioral">Behavioral Observation</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="description" class="form-label block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="description" name="description" rows="3" class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="form-group">
+                            <label for="startDate" class="form-label block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" id="startDate" name="startDate" class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate" class="form-label block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input type="date" id="endDate" name="endDate" class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-3 px-6 flex items-center justify-end gap-3 border-t border-gray-200">
+                    <button type="button" id="cancel-schedule" class="btn btn-text px-4 py-2 text-gray-700 hover:bg-gray-100 rounded transition-colors duration-200">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded shadow transition-colors duration-200">Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript for UI interactions -->
+    <script>
+        // DOM Elements
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const scheduleBtn = document.getElementById('schedule-experiment-btn');
+        const mobileAddBtn = document.getElementById('mobile-add-btn');
+        const scheduleModal = document.getElementById('schedule-modal');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalBtn = document.getElementById('close-modal');
+        const cancelScheduleBtn = document.getElementById('cancel-schedule');
+
+        // Toggle sidebar visibility
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-hidden');
+            mainContent.classList.toggle('main-content-full');
+        });
+
+        // Show modal with animation
+        function showModal() {
+            scheduleModal.classList.remove('hidden');
+            // Trigger animation after a small delay to ensure it runs
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        // Hide modal with animation
+        function hideModal() {
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            // Wait for animation to finish before hiding
+            setTimeout(() => {
+                scheduleModal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Event listeners for modal
+        scheduleBtn.addEventListener('click', showModal);
+        mobileAddBtn.addEventListener('click', showModal);
+        closeModalBtn.addEventListener('click', hideModal);
+        cancelScheduleBtn.addEventListener('click', hideModal);
+
+        // Close modal when clicking outside
+        scheduleModal.addEventListener('click', (e) => {
+            if (e.target === scheduleModal) {
+                hideModal();
+            }
+        });
+    </script>
+</body>
+</html> 

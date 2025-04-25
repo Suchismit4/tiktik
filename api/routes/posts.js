@@ -1,155 +1,59 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+// const pool = require('../db'); // DB disabled
 
-// Get all posts
+// Get all posts - Placeholder
 router.get('/', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        posts.*, 
-        post_sources.name AS name, 
-        post_sources.imageuri AS imageuri
-      FROM posts
-      LEFT JOIN post_sources ON posts.source_id = post_sources.id
-      ORDER BY posts.id ASC
-    `);
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'No posts found' });
-    }
-
-    res.status(200).json(result.rows);
-  } catch (err) {
-    console.error('Error fetching posts:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  console.log('GET /api/posts (DB Disabled)');
+  // Placeholder response
+  res.status(200).json([
+    { id: 1, uri: 'placeholder1', facts: ['fact1'], tags: ['tag1'], caption: 'Placeholder Post 1', source_id: 1, name: 'Source A', imageuri: 'imgA.jpg' },
+    { id: 2, uri: 'placeholder2', facts: ['fact2'], tags: ['tag2'], caption: 'Placeholder Post 2', source_id: 2, name: 'Source B', imageuri: 'imgB.jpg' }
+  ]);
 });
 
+// Get post by ID - Placeholder
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
-
-  try {
-    const result = await pool.query(`
-      SELECT 
-        posts.*, 
-        post_sources.name AS name, 
-        post_sources.imageuri AS imageuri
-      FROM posts
-      LEFT JOIN post_sources ON posts.source_id = post_sources.id
-      WHERE posts.id = $1
-    `, [id]);
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    res.status(200).json(result.rows[0]);
-  } catch (err) {
-    console.error('Error fetching post:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  console.log(`GET /api/posts/${id} (DB Disabled)`);
+  // Placeholder response
+  res.status(200).json(
+    { id: parseInt(id), uri: `placeholder${id}`, facts: [`fact${id}`], tags: [`tag${id}`], caption: `Placeholder Post ${id}`, source_id: 1, name: 'Source A', imageuri: 'imgA.jpg' }
+  );
 });
 
-// Create a new post
+// Create a new post - Placeholder
 router.post('/', async (req, res) => {
   const { uri, facts, tags, caption, source_name, imageuri } = req.body;
-  try {
-    // 1. Check if the source exists
-    const sourceResult = await pool.query(
-      `SELECT id FROM post_sources WHERE name = $1`,
-      [source_name]
-    );
-    let sourceId;
-    if (sourceResult.rows.length > 0) {
-      // Source exists
-      sourceId = sourceResult.rows[0].id;
-    } else {
-      // Source doesn't exist, insert it
-      const insertSource = await pool.query(
-        `INSERT INTO post_sources (name, imageuri) VALUES ($1, $2) RETURNING id`,
-        [source_name, imageuri]
-      );
-      sourceId = insertSource.rows[0].id;
-    }
-    // 2. Insert the post with the found or created source ID
-    const result = await pool.query(
-      `INSERT INTO posts (uri, facts, tags, caption, source_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [uri, facts, tags, caption, sourceId]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Error creating post:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  console.log('POST /api/posts (DB Disabled)', req.body);
+  // Placeholder response
+  res.status(201).json({
+    id: Date.now(), // Fake ID
+    uri,
+    facts,
+    tags,
+    caption,
+    source_id: Date.now() + 1, // Fake source ID
+    name: source_name,
+    imageuri
+  });
 });
 
 
-// Update a post
+// Update a post - Placeholder
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { caption, tags, facts, url } = req.body;
-
-  const fields = [];
-  const values = [];
-  let index = 1;
-
-  if (caption !== undefined) {
-    fields.push(`caption= $${index++}`);
-    values.push(caption);
-  }
-  if (tags !== undefined) {
-    fields.push(`tags = $${index++}`);
-    values.push(tags);
-  }
-  if (facts !== undefined) {
-    fields.push(`facts = $${index++}`);
-    values.push(facts);
-  }
-  if (url !== undefined) {
-    fields.push(`url = $${index++}`);
-    values.push(url);
-  }
-
-  if (fields.length === 0) {
-    return res.status(400).json({ error: 'No valid fields to update' });
-  }
-
-  values.push(id); // last placeholder for WHERE clause
-
-  try {
-    const result = await pool.query(
-      `UPDATE posts SET ${fields.join(', ')} WHERE id = $${index} RETURNING *`,
-      values
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Error updating post:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  console.log(`PATCH /api/posts/${id} (DB Disabled)`, req.body);
+  // Placeholder response
+  res.json({ id: parseInt(id), ...req.body });
 });
 
-// Delete a post
+// Delete a post - Placeholder
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  try {
-    const result = await pool.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-    res.status(200).json({ message: 'Post deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting post: ', err);
-    res.status(500).json({ error: 'Internal server error' })
-  }
+  console.log(`DELETE /api/posts/${id} (DB Disabled)`);
+  // Placeholder response
+  res.status(200).json({ message: `Post ${id} placeholder deleted successfully` });
 });
 
 module.exports = router; 

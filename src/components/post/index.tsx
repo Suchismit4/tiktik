@@ -168,7 +168,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: targetX, y: targetY },
-          duration: 700,
+          duration: 500,
           easing: Easing.bezier(0.42, 0, 0.58, 1), // Ease-in-out curve
           useNativeDriver: false, // Position changes often need this false unless using translate
         }),
