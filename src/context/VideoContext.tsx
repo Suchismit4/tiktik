@@ -89,7 +89,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
     }));
   }, []);
 
-  /**
+  /**[1,2,2,3,3,] = list; ...list
    * Update the maximum scroll depth
    * @param {number} depth - Current scroll depth
    */
