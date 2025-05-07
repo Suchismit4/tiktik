@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+<div class="app-container">
+
+    <% include partials/navbar %>
+    <% include partials/sidebar %>
+
+    <main class="main-content bg-gray-50 py-12 px-6">
+        <div class="card bg-white rounded-lg shadow-elevation-1 p-8">
+            <h1 class="text-2xl font-bold mb-6">Experiment Results</h1>
+
+            <p class="mb-4 text-gray-600">Results for experiment ID: <%= experimentId %></p>
+
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="py-4 px-6">Participant</th>
+                            <th class="py-4 px-6">Score</th>
+                            <th class="py-4 px-6">Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="py-4 px-6">John Doe</td>
+                            <td class="py-4 px-6">87%</td>
+                            <td class="py-4 px-6">Yes</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="py-4 px-6">Jane Smith</td>
+                            <td class="py-4 px-6">92%</td>
+                            <td class="py-4 px-6">Yes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

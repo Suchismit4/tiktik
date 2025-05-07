@@ -20,13 +20,33 @@ router.get('/', (req, res) => {
 
 // POST /admin/schedule - Handle scheduling a new experiment
 router.post('/schedule', (req, res) => {
-    console.log('Received experiment schedule request:');
-    console.log(req.body);
-    // TODO: Add logic to save the experiment details to the database
-    console.log(`Scheduling experiment: ${req.body.experimentName}`);
-    // Redirect back to the admin panel, perhaps with a success message
+    const { 
+        experimentName, 
+        experimentType, 
+        description, 
+        startDate, 
+        endDate, 
+        participants, 
+        surveyOptions, 
+        behaviorNotes 
+    } = req.body;
+    
+    console.log('Scheduling New Experiment:');
+    console.log({
+        experimentName,
+        experimentType,
+        description,
+        startDate,
+        endDate,
+        participants,
+        surveyOptions,
+        behaviorNotes
+    });
+
+    // TODO: Save this data to the database later
     res.redirect('/admin');
 });
+
 
 // POST /admin/download/:id - Handle data download request
 router.post('/download/:id', (req, res) => {
@@ -40,6 +60,38 @@ router.post('/download/:id', (req, res) => {
     // res.set('Content-Type', 'text/csv');
     // res.status(200).send('col1,col2\nval1,val2'); // Example CSV data
     res.redirect('/admin'); // Redirect back for now
+});
+
+// GET /admin/results/:id - View experiment results
+router.get('/results/:id', (req, res) => {
+    const experimentId = req.params.id;
+    res.render('results', { experimentId });
+});
+
+// View all experiments
+router.get('/experiments', (req, res) => {
+    const experiments = [
+      { id: 1, name: 'Test A/B Experiment', type: 'A/B Test', status: 'Running', startDate: '2024-01-01', endDate: '2024-01-15' },
+      { id: 2, name: 'User Behavior Survey', type: 'Survey', status: 'Completed', startDate: '2023-12-01', endDate: '2023-12-10' },
+      { id: 3, name: 'Mobile App A/B Test', type: 'A/B Test', status: 'Running', startDate: '2024-02-10', endDate: '2024-02-25' },
+      { id: 4, name: 'Recommendation Algorithm Study', type: 'Behavioral', status: 'Completed', startDate: '2023-11-15', endDate: '2023-11-30' },
+      { id: 5, name: 'User Engagement Analysis', type: 'Behavioral', status: 'Completed', startDate: '2023-10-01', endDate: '2023-10-31' }
+    ];
+  
+    res.render('experiments', {
+      title: 'All Experiments',
+      experiments: experiments // ✅ pass it to ejs
+    });
+  });
+  
+// View participants
+router.get('/participants', (req, res) => {
+    res.render('participants', { title: 'Manage Participants' });
+});
+
+// View settings (login/logout page)
+router.get('/settings', (req, res) => {
+    res.render('settings', { title: 'Settings' });
 });
 
 
