@@ -52,15 +52,21 @@ router.post('/schedule', (req, res) => {
 router.post('/download/:id', (req, res) => {
     const experimentId = req.params.id;
     console.log(`Received download request for experiment ID: ${experimentId}`);
-    // TODO: Add logic to fetch data for the experiment ID and prepare for download
-    // For now, just log and redirect
-    console.log('Simulating data download...');
-    // In a real scenario, would set headers and send a file
-    // res.setHeader('Content-disposition', 'attachment; filename=experiment_data.csv');
-    // res.set('Content-Type', 'text/csv');
-    // res.status(200).send('col1,col2\nval1,val2'); // Example CSV data
-    res.redirect('/admin'); // Redirect back for now
+
+    // Example CSV content — you can customize this later!
+    const csvContent = `Participant,Score,Completed
+John Doe,87%,Yes
+Jane Smith,92%,Yes
+Alex Johnson,78%,No`;
+
+    // Set the HTTP headers to tell the browser "this is a CSV download"
+    res.setHeader('Content-Disposition', `attachment; filename=experiment_${experimentId}_results.csv`);
+    res.setHeader('Content-Type', 'text/csv');
+
+    // Send the CSV string directly
+    res.status(200).send(csvContent);
 });
+
 
 // GET /admin/results/:id - View experiment results
 router.get('/results/:id', (req, res) => {
@@ -80,7 +86,7 @@ router.get('/experiments', (req, res) => {
   
     res.render('experiments', {
       title: 'All Experiments',
-      experiments: experiments // ✅ pass it to ejs
+      experiments: experiments
     });
   });
   
