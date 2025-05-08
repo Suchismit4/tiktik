@@ -76,7 +76,6 @@
 
 <body class="bg-gray-50 text-gray-900 font-sans">
     <div class="app-container">
-        <!-- Top Navigation Bar -->
         <header class="top-navbar flex items-center px-4 bg-primary text-white">
             <button id="menu-toggle"
                 class="btn btn-icon mr-4 material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
@@ -100,7 +99,6 @@
             </div>
         </header>
 
-        <!-- Sidebar Navigation -->
         <aside class="sidebar bg-white">
             <nav class="sidebar-menu py-2">
                 <a href="/admin" 
@@ -126,9 +124,7 @@
             </nav>
         </aside>
 
-        <!-- Main Content Area -->
         <main class="main-content bg-gray-50">
-            <!-- Active Experiments Card -->
             <div class="card bg-white rounded-lg shadow-elevation-1 mb-8">
                 <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
                     <div class="card-title text-xl font-medium text-gray-800">Active Experiments</div>
@@ -195,8 +191,9 @@
                                                     <%= exp.endDate %>
                                                 </td>
                                                 <td class="py-4 px-6 whitespace-nowrap flex gap-3">
-                                                    <button
-                                                        class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">View</button>
+                                                    <a href="/admin/results/<%= exp.id %>" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">
+                                                        View
+                                                      </a>                                                      
                                                     <form action="/admin/download/<%= exp.id %>" method="POST"
                                                         class="inline">
                                                         <button type="submit"
@@ -217,7 +214,6 @@
                 </div>
             </div>
 
-            <!-- Past Experiments Card -->
             <div class="card bg-white rounded-lg shadow-elevation-1">
                 <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
                     <div class="card-title text-xl font-medium text-gray-800">Completed Experiments</div>
@@ -296,14 +292,12 @@
             </div>
         </main>
 
-        <!-- Mobile FAB for adding new experiment -->
         <button id="mobile-add-btn"
             class="btn-fab bg-secondary text-white flex items-center justify-center shadow-elevation-8 transition-all duration-300 hover:shadow-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2">
             <i class="material-icons">add</i>
         </button>
     </div>
 
-    <!-- Schedule Experiment Modal -->
     <div id="schedule-modal"
         class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
         <div class="modal bg-white rounded-lg shadow-elevation-8 max-w-lg w-full max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95 opacity-0"
@@ -388,7 +382,6 @@
         </div>
     </div>
 
-    <!-- JavaScript for UI interactions -->
     <script>
         // DOM Elements
         const menuToggle = document.getElementById('menu-toggle');

@@ -71,8 +71,21 @@ Alex Johnson,78%,No`;
 // GET /admin/results/:id - View experiment results
 router.get('/results/:id', (req, res) => {
     const experimentId = req.params.id;
-    res.render('results', { experimentId });
+
+    // Fake participant data for now
+    const results = [
+        { participant: 'John Doe', score: '87%', completed: 'Yes' },
+        { participant: 'Jane Smith', score: '92%', completed: 'Yes' },
+        { participant: 'Alex Johnson', score: '78%', completed: 'No' }
+    ];
+
+    res.render('results', { 
+        title: `Results for Experiment ${experimentId}`,
+        experimentId,
+        results
+    });
 });
+
 
 // View all experiments
 router.get('/experiments', (req, res) => {
