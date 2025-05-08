@@ -53,7 +53,7 @@ router.post('/download/:id', (req, res) => {
     const experimentId = req.params.id;
     console.log(`Received download request for experiment ID: ${experimentId}`);
 
-    // Example CSV content — you can customize this later!
+    // Example CSV content
     const csvContent = `Participant,Score,Completed
 John Doe,87%,Yes
 Jane Smith,92%,Yes
