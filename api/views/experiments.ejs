@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/admin.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+<div class="app-container">
+
+  <header class="top-navbar flex items-center px-4 bg-primary text-white">
+    <button id="menu-toggle" class="btn btn-icon mr-4 material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+      <i class="material-icons">menu</i>
+    </button>
+    <div class="top-navbar-title text-xl font-medium">Experiment Management Dashboard</div>
+  </header>
+
+  <aside class="sidebar bg-white">
+    <nav class="sidebar-menu py-2">
+      <a href="/admin" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">dashboard</i> Dashboard
+      </a>
+      <a href="/admin/experiments" class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
+        <i class="material-icons mr-4">science</i> Experiments
+      </a>
+      <a href="/admin/participants" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">people</i> Participants
+      </a>
+      <a href="/admin/settings" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">settings</i> Settings
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-content bg-gray-50 py-10 px-6">
+
+    <div class="card bg-white rounded-lg shadow-elevation-1">
+      <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
+        <div class="card-title text-xl font-medium text-gray-800">All Experiments</div>
+      </div>
+      <div class="card-content p-0">
+        <div class="overflow-x-auto">
+          <table class="data-table w-full">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (experiments && experiments.length > 0) { %>
+                <% experiments.forEach(exp => { %>
+                  <tr class="hover:bg-gray-50 transition-colors duration-150">
+                    <td class="py-4 px-6 whitespace-nowrap font-medium text-gray-800"><%= exp.name %></td>
+                    <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.type %></td>
+                    <td class="py-4 px-6 whitespace-nowrap">
+                      <% if (exp.status === 'Running') { %>
+                        <span class="status-chip status-running inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span class="h-2 w-2 mr-1.5 rounded-full bg-green-400"></span> <%= exp.status %>
+                        </span>
+                      <% } else { %>
+                        <span class="status-chip status-completed inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span class="h-2 w-2 mr-1.5 rounded-full bg-gray-400"></span> <%= exp.status %>
+                        </span>
+                      <% } %>
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.startDate %></td>
+                    <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= exp.endDate %></td>
+                    <td class="py-4 px-6 whitespace-nowrap flex gap-3">
+                      <a href="/admin/results/<%= exp.id %>" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">View</a>
+                      <form action="/admin/download/<%= exp.id %>" method="POST" class="inline">
+                        <button type="submit" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">Download</button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } else { %>
+                <tr>
+                  <td colspan="6" class="py-4 px-6 text-center text-gray-500">No experiments found.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const menuToggle = document.getElementById('menu-toggle');
+const sidebar = document.querySelector('.sidebar');
+const mainContent = document.querySelector('.main-content');
+menuToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('sidebar-hidden');
+  mainContent.classList.toggle('main-content-full');
+});
+</script>
+
+</body>
+</html>
