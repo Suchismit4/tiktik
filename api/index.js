@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const admin = require('firebase-admin');
 
 // Import routes
 const postsRoutes = require('./routes/posts');
@@ -10,6 +11,19 @@ const adminRoutes = require('./routes/admin');
 
 // Load environment variables
 dotenv.config();
+
+// Initialize Firebase Admin SDK
+try {
+  const serviceAccount = require('./serviceAccountKey.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://tiktik-ee1a2.firebaseio.com' 
+  });
+  console.log('Firebase Admin SDK initialized successfully.');
+} catch (error) {
+  console.error('Error initializing Firebase Admin SDK:', error);
+  process.exit(1);
+}
 
 // Initialize app
 const app = express();

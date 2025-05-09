@@ -1,17 +1,26 @@
-// const { Pool } = require('pg');
-// const dotenv = require('dotenv');
+const { Pool } = require('pg');
+const dotenv = require('dotenv');
 
-// dotenv.config();
+dotenv.config(); // Load environment variables from .env file
 
-// const pool = new Pool({
-//   connectionString: process.env.DATABASE_URL,
-//   // TODO: Add SSL configuration 
-//   // ssl: {
-//   //   rejectUnauthorized: false
-//   // }
-// });
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_DATABASE,
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT || '5432'),
+});
 
-// module.exports = pool;
+pool.on('connect', () => {
+  console.log('Connected to the PostgreSQL database!');
+});
 
-// Placeholder export for compatibility
-module.exports = {};
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool: pool // Exporting the pool itself if needed for transactions etc.
+};

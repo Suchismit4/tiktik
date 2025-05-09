@@ -146,68 +146,47 @@
                         <table class="data-table w-full">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Name</th>
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Type</th>
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status</th>
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Start Date</th>
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        End Date</th>
-                                    <th
-                                        class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions</th>
+                                    <th class="py-3 px-4 text-left">Experiment Name</th>
+                                    <th class="py-3 px-4 text-left">Type</th>
+                                    <th class="py-3 px-4 text-left">Status</th>
+                                    <th class="py-3 px-4 text-left">Start Date</th>
+                                    <th class="py-3 px-4 text-left">End Date</th>
+                                    <th class="py-3 px-4 text-left">Created By</th>
+                                    <th class="py-3 px-4 text-left">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <% const activeExperiments=experiments.filter(exp=> exp.status === 'Running'); %>
-                                    <% if (activeExperiments && activeExperiments.length> 0) { %>
-                                        <% activeExperiments.forEach(exp=> { %>
-                                            <tr class="hover:bg-gray-50 transition-colors duration-150">
-                                                <td class="py-4 px-6 whitespace-nowrap font-medium text-gray-800">
-                                                    <%= exp.name %>
-                                                </td>
-                                                <td class="py-4 px-6 whitespace-nowrap text-gray-600">
-                                                    <%= exp.type %>
-                                                </td>
-                                                <td class="py-4 px-6 whitespace-nowrap">
-                                                    <span
-                                                        class="status-chip status-running inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        <span class="h-2 w-2 mr-1.5 rounded-full bg-green-400"></span>
-                                                        <%= exp.status %>
-                                                    </span>
-                                                </td>
-                                                <td class="py-4 px-6 whitespace-nowrap text-gray-600">
-                                                    <%= exp.startDate %>
-                                                </td>
-                                                <td class="py-4 px-6 whitespace-nowrap text-gray-600">
-                                                    <%= exp.endDate %>
-                                                </td>
-                                                <td class="py-4 px-6 whitespace-nowrap flex gap-3">
-                                                    <a href="/admin/results/<%= exp.id %>" class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">
-                                                        View
-                                                      </a>                                                      
-                                                    <form action="/admin/download/<%= exp.id %>" method="POST"
-                                                        class="inline">
-                                                        <button type="submit"
-                                                            class="btn btn-text text-primary hover:bg-blue-50 px-3 py-1 rounded text-sm transition-colors duration-200">Download</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                            <% }); %>
-                                                <% } else { %>
-                                                    <tr>
-                                                        <td colspan="6" class="py-4 px-6 text-center text-gray-500">No
-                                                            active experiments found.</td>
-                                                    </tr>
-                                                    <% } %>
+                                <% if (error) { %>
+                                    <tr>
+                                        <td colspan="7" class="py-4 px-6 text-center text-red-500"><%= error %></td>
+                                    </tr>
+                                <% } else if (experiments && experiments.length > 0) { %>
+                                    <% experiments.forEach(function(exp) { %> 
+                                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                            <td class="py-3 px-4"><%= exp.name %></td>
+                                            <td class="py-3 px-4"><%= exp.type %></td>
+                                            <td class="py-3 px-4">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    <%= exp.status === 'Running' || exp.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                                       exp.status === 'Completed' || exp.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                                                       'bg-yellow-100 text-yellow-800' %>">
+                                                    <%= exp.status %>
+                                                </span>
+                                            </td>
+                                            <td class="py-3 px-4"><%= exp.start_date || 'N/A' %></td>
+                                            <td class="py-3 px-4"><%= exp.end_date || 'N/A' %></td>
+                                            <td class="py-3 px-4"><%= exp.created_by_admin_username || 'N/A' %></td>
+                                            <td class="py-3 px-4">
+                                                <a href="/admin/results/<%= exp.experiment_id %>" class="text-indigo-600 hover:text-indigo-900 text-sm">View Results</a>
+                                                <!-- Add other actions like Edit/Delete later -->
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-gray-500">No experiments found or unable to load experiments.</td>
+                                    </tr>
+                                <% } %>
                             </tbody>
                         </table>
                     </div>
@@ -330,6 +309,24 @@
                             <option value="Other">Other</option>
                         </select>
                     </div>
+
+                    <!-- A/B Test Variants Section (Conditional) -->
+                    <div id="ab-variants-section" class="form-group mb-5 hidden">
+                        <label class="form-label block text-sm font-medium text-gray-700 mb-2">A/B Test Variants</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="variantAName" class="text-xs text-gray-500">Variant A Name:</label>
+                                <input type="text" id="variantAName" name="variantAName" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="e.g., Control Group">
+                            </div>
+                            <div>
+                                <label for="variantBName" class="text-xs text-gray-500">Variant B Name:</label>
+                                <input type="text" id="variantBName" name="variantBName" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="e.g., New Feature">
+                            </div>
+                        </div>
+                         <p class="text-xs text-gray-500 mt-1">Participants will be split between these two variants.</p>
+                    </div>
+                    <!-- End A/B Test Variants Section -->
+
                     <div class="form-group mb-5">
                         <label for="description"
                             class="form-label block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -355,6 +352,17 @@
                         <input type="text" id="behaviorNotes" name="behaviorNotes" class="form-control"
                             placeholder="Describe behavioral experiment if any">
                     </div>
+
+                    <!-- Dynamic Survey Questions Section -->
+                    <div class="form-group mb-5">
+                        <label class="form-label block text-sm font-medium text-gray-700 mb-2">Survey Questions (Optional)</label>
+                        <div id="survey-questions-container"></div>
+                        <button type="button" id="add-question-btn" class="mt-2 btn btn-outline text-sm text-primary border-primary hover:bg-blue-50">
+                            <i class="material-icons text-sm mr-1">add_circle_outline</i> Add Question
+                        </button>
+                    </div>
+                    <!-- End Dynamic Survey Questions Section -->
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div class="form-group">
                             <label for="startDate" class="form-label block text-sm font-medium text-gray-700 mb-1">Start
@@ -383,7 +391,7 @@
     </div>
 
     <script>
-        // DOM Elements
+        // DOM Elements for general modal and sidebar
         const menuToggle = document.getElementById('menu-toggle');
         const sidebar = document.querySelector('.sidebar');
         const mainContent = document.querySelector('.main-content');
@@ -403,7 +411,6 @@
         // Show modal with animation
         function showModal() {
             scheduleModal.classList.remove('hidden');
-            // Trigger animation after a small delay to ensure it runs
             setTimeout(() => {
                 modalContent.classList.remove('scale-95', 'opacity-0');
                 modalContent.classList.add('scale-100', 'opacity-100');
@@ -414,7 +421,6 @@
         function hideModal() {
             modalContent.classList.remove('scale-100', 'opacity-100');
             modalContent.classList.add('scale-95', 'opacity-0');
-            // Wait for animation to finish before hiding
             setTimeout(() => {
                 scheduleModal.classList.add('hidden');
             }, 300);
@@ -425,13 +431,117 @@
         mobileAddBtn.addEventListener('click', showModal);
         closeModalBtn.addEventListener('click', hideModal);
         cancelScheduleBtn.addEventListener('click', hideModal);
-
-        // Close modal when clicking outside
         scheduleModal.addEventListener('click', (e) => {
-            if (e.target === scheduleModal) {
-                hideModal();
-            }
+            if (e.target === scheduleModal) hideModal();
         });
+
+        // --- A/B Test Variant UI Toggle ---
+        const experimentTypeSelect = document.getElementById('experimentType');
+        const abVariantsSection = document.getElementById('ab-variants-section');
+        const variantANameInput = document.getElementById('variantAName');
+        const variantBNameInput = document.getElementById('variantBName');
+
+        if (experimentTypeSelect) { // Ensure the element exists
+            experimentTypeSelect.addEventListener('change', (event) => {
+                if (abVariantsSection && variantANameInput && variantBNameInput) { // Check dependent elements
+                    if (event.target.value === 'A/B Test') {
+                        abVariantsSection.classList.remove('hidden');
+                        variantANameInput.required = true;
+                        variantBNameInput.required = true;
+                    } else {
+                        abVariantsSection.classList.add('hidden');
+                        variantANameInput.required = false;
+                        variantBNameInput.required = false;
+                    }
+                }
+            });
+            // Trigger change on load in case A/B Test is pre-selected (e.g. form validation error)
+             if(experimentTypeSelect.value === 'A/B Test'){
+                abVariantsSection.classList.remove('hidden');
+                variantANameInput.required = true;
+                variantBNameInput.required = true;
+            }
+        }
+
+        // --- JavaScript for Dynamic Questions ---
+        const questionsContainer = document.getElementById('survey-questions-container');
+        const addQuestionBtn = document.getElementById('add-question-btn');
+        let questionIndex = 0;
+
+        if (addQuestionBtn && questionsContainer) { // Ensure elements exist
+            addQuestionBtn.addEventListener('click', () => {
+                questionIndex++;
+                const questionId = `question-${questionIndex}`;
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('question-block', 'p-3', 'border', 'border-gray-200', 'rounded-md', 'mb-3', 'bg-gray-50');
+                questionDiv.setAttribute('data-id', questionId);
+
+                questionDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-medium text-gray-600">Question ${questionIndex}</label>
+                        <button type="button" class="remove-question-btn text-red-500 hover:text-red-700 text-sm">&times; Remove</button>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label for="${questionId}-text" class="text-xs text-gray-500">Question Text:</label>
+                        <input type="text" id="${questionId}-text" name="questions[${questionIndex-1}][text]" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" required>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label for="${questionId}-type" class="text-xs text-gray-500">Type:</label>
+                        <select id="${questionId}-type" name="questions[${questionIndex-1}][type]" class="question-type-select form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md bg-white text-sm">
+                            <option value="free_text">Free Text</option>
+                            <option value="multiple_choice">Multiple Choice</option>
+                            <option value="slider">Slider</option>
+                        </select>
+                    </div>
+                    <div id="${questionId}-options-container" class="form-group mb-2 hidden">
+                        <label for="${questionId}-options" class="text-xs text-gray-500">Options (comma-separated):</label>
+                        <input type="text" id="${questionId}-options" name="questions[${questionIndex-1}][options]" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                    <div id="${questionId}-slider-container" class="form-group mb-2 hidden grid grid-cols-3 gap-2">
+                        <div>
+                            <label for="${questionId}-slider-min" class="text-xs text-gray-500">Min:</label>
+                            <input type="number" id="${questionId}-slider-min" name="questions[${questionIndex-1}][slider_min]" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" value="0">
+                        </div>
+                        <div>
+                            <label for="${questionId}-slider-max" class="text-xs text-gray-500">Max:</label>
+                            <input type="number" id="${questionId}-slider-max" name="questions[${questionIndex-1}][slider_max]" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" value="100">
+                        </div>
+                        <div>
+                            <label for="${questionId}-slider-step" class="text-xs text-gray-500">Step:</label>
+                            <input type="number" id="${questionId}-slider-step" name="questions[${questionIndex-1}][slider_step]" class="form-control mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md text-sm" value="1">
+                        </div>
+                    </div>
+                `;
+                questionsContainer.appendChild(questionDiv);
+
+                questionDiv.querySelector('.question-type-select').addEventListener('change', handleQuestionTypeChange);
+                questionDiv.querySelector('.remove-question-btn').addEventListener('click', (e) => {
+                    e.target.closest('.question-block').remove();
+                });
+            });
+        }
+
+        function handleQuestionTypeChange(event) {
+            const selectedType = event.target.value;
+            const questionBlock = event.target.closest('.question-block');
+            const optionsContainer = questionBlock.querySelector('[id$="-options-container"]');
+            const sliderContainer = questionBlock.querySelector('[id$="-slider-container"]');
+
+            if(optionsContainer && sliderContainer){ // Ensure elements exist
+                optionsContainer.classList.add('hidden');
+                sliderContainer.classList.add('hidden');
+                optionsContainer.querySelector('input').required = false;
+                sliderContainer.querySelectorAll('input').forEach(input => input.required = false);
+
+                if (selectedType === 'multiple_choice') {
+                    optionsContainer.classList.remove('hidden');
+                    optionsContainer.querySelector('input').required = true;
+                } else if (selectedType === 'slider') {
+                    sliderContainer.classList.remove('hidden');
+                    sliderContainer.querySelectorAll('input').forEach(input => input.required = true);
+                }
+            }
+        }
     </script>
 </body>
 
