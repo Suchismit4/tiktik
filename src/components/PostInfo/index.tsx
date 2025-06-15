@@ -24,8 +24,8 @@ const PostInfo: React.FC<PostInfoProps> = ({
   caption = 'A short caption similar to explanatory headline.', 
   source = { 
     name: 'USA Today', 
-    imageUri: 'https://i.imgur.com/P8OOZMm.png' 
-  } 
+    imageuri: 'https://i.imgur.com/P8OOZMm.png' 
+  }
 }) => {
   return (
     <View style={styles.container}> 
@@ -38,10 +38,10 @@ const PostInfo: React.FC<PostInfoProps> = ({
       <View style={styles.sourceInfo}>
         <Image
           style={styles.sourceImage} 
-          source={{ uri: source.imageUri }}
+          source={{ uri: source.imageuri }}
         />
         {/* Source name - Style applies fontFamily */}
-        <Text style={styles.sourceText}>{source.name}</Text> 
+        <Text style={styles.sourceText}>{source.name}</Text>
       </View>
     </View>
   );

@@ -14,6 +14,11 @@ export interface Post {
   likes?: number;
   facts?: string[];
   tags?: string[];
+  // Streaming-related fields
+  originalUri?: string;
+  streamingUrl?: string;
+  fallbackUrl?: string;
+  isStreaming?: boolean;
 }
 
 /**

@@ -15,7 +15,6 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } f
 import { View, Text, SafeAreaView, Animated, TouchableOpacity, Dimensions, Image, Easing, ActivityIndicator, Platform } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus }  from 'expo-av'
 import {
-  GestureHandlerRootView,
   TapGestureHandler,
   State,
   PanGestureHandler,
@@ -64,10 +63,13 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
  * @returns {JSX.Element} The rendered Post component
  */
 const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
-  // Add a unique ID for debugging
-  const componentId = useRef(`post-${Math.random().toString(36).substr(2, 9)}`).current;
+  // Add a unique ID for debugging  
+  const componentId = useRef<string>();
+  if (!componentId.current) {
+    componentId.current = `post-${Math.random().toString(36).substr(2, 9)}`;
+  }
   // Log component rendering
-  console.log(`[Post ${componentId}] Rendering post for video: ${data.uri.substring(0, 20)}...`);
+  console.log(`[Post ${componentId.current}] Rendering post for video: ${data.uri.substring(0, 20)}...`);
 
   // Reference to the video player for controlling playback
   const videoRef = useRef<Video>(null);
@@ -114,7 +116,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       wasJustLiked = true;
       visualLikePending.current = true;
-      console.log(`[Post ${componentId}] Setting visualLikePending.current = true`);
+      console.log(`[Post ${componentId.current}] Setting visualLikePending.current = true`);
     }
 
 
@@ -344,19 +346,22 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
         console.log(`[Post ${componentId}] Error unloading video:`, e);
       }
     }
-  }), [componentId]);
+  }), []);
 
+
+  const [videoSource, setVideoSource] = useState<{ uri: string }>({ uri: data.uri });
+  const [hasError, setHasError] = useState<boolean>(false);
 
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) {
       // Video is not loaded or has encountered an error
-      // if (status.error) {
-      //   console.error(`[Post ${componentId}] Playback Error:`, status.error);
-      //   setIsLoading(false); // Hide loader on error
-      // } else {
-      //   // Still loading or unloaded state
-      //   setIsLoading(true);
-      // }
+      if (status.error) {
+        console.error(`[Post ${componentId.current}] Playback Error:`, status.error);
+        handleVideoError();
+      } else {
+        // Still loading or unloaded state
+        setIsLoading(true);
+      }
     } else {
       // Video is loaded
       if (status.isBuffering) {
@@ -365,28 +370,59 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       } else {
         // Video is ready to play or playing
         setIsLoading(false);
+        setHasError(false); // Reset error state on successful load
       }
+    }
+  };
+
+  const handleVideoError = () => {
+    console.error(`[Post ${componentId.current}] Video failed to load:`, videoSource.uri);
+    
+    // If we're currently using a streaming URL and have a fallback, try the fallback
+    if (data.isStreaming && data.fallbackUrl && !hasError) {
+      console.log(`[Post ${componentId.current}] Trying fallback URL:`, data.fallbackUrl);
+      setVideoSource({ uri: data.fallbackUrl });
+      setHasError(true); // Mark that we've tried fallback
+      setIsLoading(true);
+    } else if (data.originalUri && data.originalUri !== videoSource.uri && !hasError) {
+      console.log(`[Post ${componentId.current}] Trying original URL:`, data.originalUri);
+      setVideoSource({ uri: data.originalUri });
+      setHasError(true);
+      setIsLoading(true);
+    } else {
+      // All options exhausted
+      console.error(`[Post ${componentId.current}] All video sources failed`);
+      setIsLoading(false);
+      setHasError(true);
     }
   };
   /**
    * Setup effect to ensure gesture handlers are properly initialized
    */
   // --- (useEffect for mounting/unmounting remains similar, ensure timeouts are cleared) ---
+  // Effect to update video source when data changes
   useEffect(() => {
-    console.log(`[Post ${componentId}] Component mounted.`);
+    console.log(`[Post ${componentId.current}] Data changed, updating video source to: ${data.uri}`);
+    setVideoSource({ uri: data.uri });
+    setHasError(false);
+    setIsLoading(true);
+  }, [data.uri]);
+
+  useEffect(() => {
+    console.log(`[Post ${componentId.current}] Component mounted.`);
     isMounted.current = true;
     setGesturesReady(false); // Gestures not ready initially
     setIsLoading(true);
 
     const readyTimer = setTimeout(() => {
       if (isMounted.current) {
-        console.log(`[Post ${componentId}] Marking gestures as ready.`);
+        console.log(`[Post ${componentId.current}] Marking gestures as ready.`);
         setGesturesReady(true);
       }
     }, 150); // Delay to allow layout and handlers to settle
 
     return () => {
-      console.log(`[Post ${componentId}] Component unmounting.`);
+      console.log(`[Post ${componentId.current}] Component unmounting.`);
       isMounted.current = false;
       clearTimeout(readyTimer);
       // Clear animation fallback timer on unmount
@@ -402,7 +438,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       // Unload video
       videoRef.current?.unloadAsync().catch(e => console.log("Unmount Unload Error:", e));
     };
-  }, [data.uri, componentId, flyingHeart, liked]);
+  }, []); // No dependencies needed for mount/unmount effect
 
   useEffect(() => {
     // This effect runs when `flyingHeart` or `liked` changes.
@@ -421,7 +457,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       visualLikePending.current = false;
       console.log(`[useEffect ${componentId}] Reset visualLikePending.current = false`);
     }
-  }, [flyingHeart, liked, componentId]); // Depend on flyingHeart and liked state
+  }, [flyingHeart, liked]); // Depend on flyingHeart and liked state
 
   /**
    * Add effect to specifically monitor and refresh gesture handlers when component remounts
@@ -489,10 +525,10 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       timeoutIds.forEach(id => clearTimeout(id));
       console.log(`[Post ${componentId}] Cleaning up gesture handlers`);
     };
-  }, [data.uri, componentId]);
+  }, [data.uri]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <Animated.View style={{ flex: 1 }}>
       {/* Single Tap layer (outer) */}
       <TapGestureHandler
         ref={singleTapRef}
@@ -525,19 +561,19 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
                 resizeMode={ResizeMode.COVER}
                 shouldPlay={false}
                 isLooping
-                source={{ uri: data.uri }}
+                source={videoSource}
                 onError={(error) => {
-                  console.error(`[Post ${componentId}] Video Error:`, error);
-                  setIsLoading(false); // Hide loader on error
+                  console.error(`[Post ${componentId.current}] Video Error:`, error);
+                  handleVideoError();
                 }}
                 // *** Playback Status Update Listener ***
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
                 onLoadStart={() => {
-                  console.log(`[Post ${componentId}] onLoadStart`);
+                  console.log(`[Post ${componentId.current}] onLoadStart - Source: ${videoSource.uri}`);
                   setIsLoading(true);
                 }}
                 onLoad={(status) => {
-                  console.log(`[Post ${componentId}] onLoad fired`);
+                  console.log(`[Post ${componentId.current}] onLoad fired - Source: ${videoSource.uri}`);
                 }}
               />
 
@@ -603,7 +639,10 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
       {/* Post information overlay (caption, source) */}
       < View style={styles.postinfo} >
         <SafeAreaView>
-          <PostInfo caption={data.caption} source={data.source} />
+          <PostInfo 
+            caption={data.caption} 
+            source={data.source}
+          />
         </SafeAreaView>
       </View >
 
@@ -633,7 +672,7 @@ const Post = forwardRef<VideoRef, PostProps>(({ data }, parentRef) => {
           </Text>
         </Animated.View>
       </PanGestureHandler >
-    </GestureHandlerRootView >
+    </Animated.View >
   );
 });
 

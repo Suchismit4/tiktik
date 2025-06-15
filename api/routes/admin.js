@@ -1,6 +1,54 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // Import the PostgreSQL connection
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for video uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (file.fieldname === 'video_file') {
+      cb(null, 'uploads/videos/')
+    } else if (file.fieldname === 'thumbnail_file') {
+      cb(null, 'uploads/thumbnails/')
+    }
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter for video uploads
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === 'video_file') {
+    // Accept video files
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only video files are allowed for video uploads!'), false);
+    }
+  } else if (file.fieldname === 'thumbnail_file') {
+    // Accept image files for thumbnails
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for thumbnails!'), false);
+    }
+  } else {
+    cb(null, true);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit for videos
+  }
+});
 
 // GET /admin - Render the admin panel
 router.get('/', async (req, res) => {
@@ -381,6 +429,313 @@ router.post('/experiments/:id/delete', async (req, res) => {
     console.error(`Error deleting experiment ID ${experimentId}:`, error);
     res.redirect(`/admin/experiments?error=ExperimentDeleteFailed&detail=${encodeURIComponent(error.message)}`);
   }
+});
+
+// GET /admin/content - View content management page
+router.get('/content', async (req, res) => {
+  try {
+    // For now, we'll use the same video data from posts.js
+    // In future, this would query the database content table
+    const postsModule = require('./posts');
+    const VIDEOS = postsModule.VIDEOS || []; // Import the video data
+    
+    // Calculate total unique tags
+    const allTags = VIDEOS.flatMap(video => video.tags || []);
+    const uniqueTags = [...new Set(allTags)];
+    
+    res.render('content', {
+      title: 'Content Management',
+      videos: VIDEOS.map(video => ({
+        ...video,
+        uploaded_at: new Date().toISOString(), // Mock upload date
+        status: 'active' // Mock status
+      })),
+      totalTags: uniqueTags.length,
+      message: req.query.message,
+      error: req.query.error
+    });
+  } catch (error) {
+    console.error('Error loading content page:', error);
+    res.render('content', {
+      title: 'Content Management',
+      videos: [],
+      totalTags: 0,
+      error: 'Could not load content data.'
+    });
+  }
+});
+
+// POST /admin/content/upload - Handle content upload with enhanced metadata
+router.post('/content/upload', upload.fields([
+  { name: 'video_file', maxCount: 1 },
+  { name: 'thumbnail_file', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const {
+      video_url,
+      title,
+      caption,
+      thumbnail_url,
+      source_name,
+      source_image,
+      duration,
+      tags,
+      // Enhanced metadata fields
+      content_category,
+      content_genre,
+      sentiment,
+      complexity_level,
+      target_audience,
+      visual_style,
+      emotional_tone,
+      controversy_level,
+      news_type,
+      geographic_relevance,
+      content_themes,
+      production_quality,
+      audio_characteristics,
+      language,
+      reading_level,
+      engagement_prediction
+    } = req.body;
+
+    let finalVideoUrl = video_url;
+    let finalThumbnailUrl = thumbnail_url;
+
+    // Handle uploaded video file
+    if (req.files && req.files.video_file) {
+      const videoFile = req.files.video_file[0];
+      finalVideoUrl = `/api/stream/video/${videoFile.filename}`;
+      console.log('Video file uploaded:', videoFile.filename);
+    }
+
+    // Handle uploaded thumbnail file
+    if (req.files && req.files.thumbnail_file) {
+      const thumbnailFile = req.files.thumbnail_file[0];
+      finalThumbnailUrl = `/api/stream/thumbnail/${thumbnailFile.filename}`;
+      console.log('Thumbnail file uploaded:', thumbnailFile.filename);
+    }
+
+    // Validate that we have either URL or file upload
+    if (!finalVideoUrl) {
+      return res.redirect('/admin/content?error=Either video URL or video file is required');
+    }
+
+    // Parse tags and themes
+    const tagArray = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    const themeArray = content_themes ? content_themes.split(',').map(theme => theme.trim()).filter(theme => theme) : [];
+    const audioCharArray = audio_characteristics ? audio_characteristics.split(',').map(char => char.trim()).filter(char => char) : [];
+
+    // Create enhanced content object with comprehensive metadata
+    const newContent = {
+      video_url: finalVideoUrl,
+      title: title || null,
+      description_caption: caption || null,
+      thumbnail_url: finalThumbnailUrl || null,
+      duration_seconds: duration ? parseInt(duration) : null,
+      source: source_name ? {
+        name: source_name,
+        imageuri: source_image || null
+      } : null,
+      tags: tagArray,
+      // Enhanced metadata for engagement analysis
+      metadata: {
+        content_category: content_category || null,
+        content_genre: content_genre || null,
+        sentiment: sentiment || null,
+        complexity_level: complexity_level || null,
+        target_audience: target_audience || null,
+        visual_style: visual_style || null,
+        emotional_tone: emotional_tone || null,
+        controversy_level: controversy_level ? parseInt(controversy_level) : null,
+        news_type: news_type || null,
+        geographic_relevance: geographic_relevance || null,
+        content_themes: themeArray,
+        production_quality: production_quality || null,
+        audio_characteristics: audioCharArray,
+        language: language || 'en',
+        reading_level: reading_level || null,
+        engagement_prediction: engagement_prediction ? parseFloat(engagement_prediction) : null,
+        upload_method: req.files && req.files.video_file ? 'file_upload' : 'url_provided',
+        file_info: req.files && req.files.video_file ? {
+          original_name: req.files.video_file[0].originalname,
+          size: req.files.video_file[0].size,
+          mimetype: req.files.video_file[0].mimetype
+        } : null
+      },
+      uploaded_at: new Date().toISOString()
+    };
+
+    console.log('Enhanced content upload:', JSON.stringify(newContent, null, 2));
+
+    // TODO: Save to database when content table is implemented
+    // const result = await db.query(
+    //   'INSERT INTO content (video_url, title, description_caption, thumbnail_url, duration_seconds, custom_metadata, uploaded_by_admin_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING content_id',
+    //   [finalVideoUrl, title, caption, finalThumbnailUrl, duration, newContent.metadata, admin_id]
+    // );
+
+    // For now, add to the local VIDEOS array so it shows up in the content library
+    const postsModule = require('./posts');
+    const VIDEOS = postsModule.VIDEOS;
+    
+    // Generate a new ID (find the highest existing ID and add 1)
+    const maxId = VIDEOS.length > 0 ? Math.max(...VIDEOS.map(v => v.id)) : 0;
+    const newId = maxId + 1;
+    
+    // Create a post object that matches the expected format
+    const newPost = {
+      id: newId,
+      uri: finalVideoUrl,
+      caption: title || caption || 'Uploaded video',
+      source: newContent.source || {
+        name: 'Admin Upload',
+        imageuri: 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: 0,
+      facts: [],
+      tags: tagArray,
+      enabled: true, // New uploads are enabled by default
+      // Store additional metadata for admin panel display
+      metadata: newContent.metadata,
+      title: title,
+      thumbnail_url: finalThumbnailUrl,
+      duration_seconds: newContent.duration_seconds,
+      uploaded_at: newContent.uploaded_at
+    };
+    
+    // Add to the beginning of the array so it appears first
+    VIDEOS.unshift(newPost);
+    
+    console.log(`Added new video with ID ${newId} to VIDEOS array. Total videos: ${VIDEOS.length}`);
+
+    res.redirect('/admin/content?message=Content uploaded successfully with enhanced metadata');
+  } catch (error) {
+    console.error('Error uploading content:', error);
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      res.redirect('/admin/content?error=File too large. Maximum size is 500MB.');
+    } else if (error.message.includes('Only video files are allowed')) {
+      res.redirect('/admin/content?error=Invalid file type. Only video files are allowed.');
+    } else {
+      res.redirect('/admin/content?error=Failed to upload content: ' + error.message);
+    }
+  }
+});
+
+// POST /admin/content/:id/delete - Delete content
+router.post('/content/:id/delete', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // TODO: Implement database deletion when content table is ready
+    // const deleteResult = await db.query('DELETE FROM content WHERE content_id = $1 RETURNING title', [id]);
+    
+    // For now, remove from the local VIDEOS array
+    const postsModule = require('./posts');
+    const VIDEOS = postsModule.VIDEOS;
+    
+    const videoIndex = VIDEOS.findIndex(video => video.id === parseInt(id));
+    
+    if (videoIndex === -1) {
+      return res.redirect('/admin/content?error=Video not found');
+    }
+    
+    // Remove the video from the array
+    const deletedVideo = VIDEOS.splice(videoIndex, 1)[0];
+    
+    console.log(`Content deletion completed for ID: ${id}. Video "${deletedVideo.title || deletedVideo.caption}" removed. Total videos: ${VIDEOS.length}`);
+    res.redirect('/admin/content?message=Content deleted successfully');
+  } catch (error) {
+    console.error(`Error deleting content ID ${id}:`, error);
+    res.redirect('/admin/content?error=Failed to delete content');
+  }
+});
+
+// POST /admin/content/:id/toggle - Toggle content enabled/disabled status
+router.post('/content/:id/toggle', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Get the VIDEOS array from posts.js
+    const postsModule = require('./posts');
+    const VIDEOS = postsModule.VIDEOS;
+    
+    const videoIndex = VIDEOS.findIndex(video => video.id === parseInt(id));
+    
+    if (videoIndex === -1) {
+      return res.redirect('/admin/content?error=Video not found');
+    }
+    
+    // Toggle the enabled status
+    VIDEOS[videoIndex].enabled = !VIDEOS[videoIndex].enabled;
+    
+    const status = VIDEOS[videoIndex].enabled ? 'enabled' : 'disabled';
+    console.log(`Content ID ${id} ${status}`);
+    
+    res.redirect(`/admin/content?message=Content ${status} successfully`);
+  } catch (error) {
+    console.error(`Error toggling content ID ${id}:`, error);
+    res.redirect('/admin/content?error=Failed to toggle content status');
+  }
+});
+
+// GET /admin/stream/video/:filename - Stream video files
+router.get('/stream/video/:filename', (req, res) => {
+  const { filename } = req.params;
+  const videoPath = path.join(__dirname, '../uploads/videos', filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(videoPath)) {
+    return res.status(404).json({ error: 'Video not found' });
+  }
+
+  const stat = fs.statSync(videoPath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    // Handle range requests for video streaming
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunksize = (end - start) + 1;
+    const file = fs.createReadStream(videoPath, { start, end });
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': 'video/mp4',
+    };
+    res.writeHead(206, head);
+    file.pipe(res);
+  } else {
+    // Stream entire file
+    const head = {
+      'Content-Length': fileSize,
+      'Content-Type': 'video/mp4',
+    };
+    res.writeHead(200, head);
+    fs.createReadStream(videoPath).pipe(res);
+  }
+});
+
+// GET /admin/stream/thumbnail/:filename - Serve thumbnail images
+router.get('/stream/thumbnail/:filename', (req, res) => {
+  const { filename } = req.params;
+  const thumbnailPath = path.join(__dirname, '../uploads/thumbnails', filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(thumbnailPath)) {
+    return res.status(404).json({ error: 'Thumbnail not found' });
+  }
+
+  // Determine content type based on file extension
+  const ext = path.extname(filename).toLowerCase();
+  let contentType = 'image/jpeg'; // default
+  if (ext === '.png') contentType = 'image/png';
+  else if (ext === '.gif') contentType = 'image/gif';
+  else if (ext === '.webp') contentType = 'image/webp';
+
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+  fs.createReadStream(thumbnailPath).pipe(res);
 });
 
 module.exports = router; 

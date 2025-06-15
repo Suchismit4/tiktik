@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              light: '#63a4ff',
+              DEFAULT: '#1976d2',
+              dark: '#004ba0',
+            },
+            secondary: {
+              light: '#ff5983',
+              DEFAULT: '#f50057',
+              dark: '#bb002f',
+            }
+          },
+          fontFamily: {
+            sans: ['Roboto', 'sans-serif'],
+          },
+          boxShadow: {
+            'elevation-1': '0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12)',
+            'elevation-2': '0 3px 1px -2px rgba(0,0,0,0.2), 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12)',
+            'elevation-4': '0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12)',
+            'elevation-8': '0 5px 5px -3px rgba(0,0,0,0.2), 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12)',
+          }
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="/css/admin.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+<div class="app-container">
+
+  <header class="top-navbar flex items-center px-4 bg-primary text-white">
+    <button id="menu-toggle" class="btn btn-icon mr-4 material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+      <i class="material-icons">menu</i>
+    </button>
+    <div class="top-navbar-title text-xl font-medium">Content Management Dashboard</div>
+    <div class="flex items-center gap-4 ml-auto">
+      <button id="upload-content-btn"
+          class="btn btn-primary flex items-center gap-2 py-2 px-4 rounded-md bg-white text-primary hover:bg-gray-100 transition-colors duration-200 shadow-elevation-1">
+          <i class="material-icons text-sm">cloud_upload</i>
+          <span class="font-medium text-sm">Upload Content</span>
+      </button>
+    </div>
+  </header>
+
+  <aside class="sidebar bg-white">
+    <nav class="sidebar-menu py-2">
+      <a href="/admin" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">dashboard</i> Dashboard
+      </a>
+      <a href="/admin/experiments" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">science</i> Experiments
+      </a>
+      <a href="/admin/participants" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">people</i> Participants
+      </a>
+      <a href="/admin/content" class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
+        <i class="material-icons mr-4">video_library</i> Content
+      </a>
+      <a href="/admin/settings" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">settings</i> Settings
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-content bg-gray-50 py-10 px-6">
+
+    <!-- Upload Success/Error Messages -->
+    <% if (typeof message !== 'undefined' && message) { %>
+      <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6" role="alert">
+        <span class="block sm:inline"><%= message %></span>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+        <span class="block sm:inline"><%= error %></span>
+      </div>
+    <% } %>
+
+    <!-- Content Upload Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
+              <i class="material-icons text-blue-600 text-lg">video_library</i>
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">Total Videos</p>
+            <p class="text-2xl font-semibold text-gray-900"><%= videos ? videos.length : 0 %></p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+              <i class="material-icons text-green-600 text-lg">check_circle</i>
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">Enabled</p>
+            <p class="text-2xl font-semibold text-gray-900"><%= videos ? videos.filter(v => v.enabled !== false).length : 0 %></p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-red-100 rounded-md flex items-center justify-center">
+              <i class="material-icons text-red-600 text-lg">cancel</i>
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">Disabled</p>
+            <p class="text-2xl font-semibold text-gray-900"><%= videos ? videos.filter(v => v.enabled === false).length : 0 %></p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
+              <i class="material-icons text-yellow-600 text-lg">local_offer</i>
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">Total Tags</p>
+            <p class="text-2xl font-semibold text-gray-900"><%= totalTags || 0 %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Management Table -->
+    <div class="card bg-white rounded-lg shadow-elevation-1">
+      <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
+        <div class="card-title text-xl font-medium text-gray-800">Video Content Library</div>
+        <div class="flex items-center gap-3">
+          <button class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+            <i class="material-icons text-sm">filter_list</i>
+            <span class="font-medium text-sm">Filter</span>
+          </button>
+          <button class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+            <i class="material-icons text-sm">sort</i>
+            <span class="font-medium text-sm">Sort</span>
+          </button>
+        </div>
+      </div>
+      <div class="card-content p-0">
+        <div class="overflow-x-auto">
+          <table class="data-table w-full min-w-max">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Thumbnail</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Title</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Category</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Source</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Duration</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Sentiment</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Tags</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Uploaded</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <% if (error) { %>
+                <tr>
+                  <td colspan="10" class="py-4 px-6 text-center text-red-500"><%= error %></td>
+                </tr>
+              <% } else if (videos && videos.length > 0) { %>
+                <% videos.forEach(function(video) { %>
+                  <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="py-3 px-4">
+                      <div class="w-16 h-12 bg-gray-200 rounded-md flex items-center justify-center">
+                        <i class="material-icons text-gray-400">play_circle_outline</i>
+                      </div>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="text-sm font-medium text-gray-900"><%= video.title || video.caption || 'Untitled' %></div>
+                      <div class="text-sm text-gray-500">ID: <%= video.id %></div>
+                      <% if (video.uploaded_at) { %>
+                        <div class="text-xs text-blue-600">📁 Uploaded</div>
+                      <% } %>
+                    </td>
+                    <td class="py-3 px-4">
+                      <% if (video.enabled !== false) { %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span class="w-2 h-2 mr-1 bg-green-400 rounded-full"></span>
+                          Enabled
+                        </span>
+                      <% } else { %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span class="w-2 h-2 mr-1 bg-red-400 rounded-full"></span>
+                          Disabled
+                        </span>
+                      <% } %>
+                    </td>
+                    <td class="py-3 px-4">
+                      <% if (video.metadata && video.metadata.content_category) { %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <%= video.metadata.content_category %>
+                        </span>
+                      <% } else { %>
+                        <span class="text-sm text-gray-400">General</span>
+                      <% } %>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="flex items-center">
+                        <% if (video.source && video.source.imageuri) { %>
+                          <img src="<%= video.source.imageuri %>" alt="<%= video.source.name %>" class="w-6 h-6 rounded-full mr-2">
+                        <% } %>
+                        <span class="text-sm text-gray-700"><%= video.source ? video.source.name : 'Unknown' %></span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-4">
+                      <span class="text-sm text-gray-700"><%= video.duration_seconds ? Math.floor(video.duration_seconds / 60) + ':' + (video.duration_seconds % 60).toString().padStart(2, '0') : 'N/A' %></span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <% if (video.metadata && video.metadata.sentiment) { %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                          <%= video.metadata.sentiment === 'positive' ? 'bg-green-100 text-green-800' : 
+                             video.metadata.sentiment === 'negative' ? 'bg-red-100 text-red-800' : 
+                             video.metadata.sentiment === 'neutral' ? 'bg-gray-100 text-gray-800' : 
+                             'bg-yellow-100 text-yellow-800' %>">
+                          <%= video.metadata.sentiment %>
+                        </span>
+                      <% } else { %>
+                        <span class="text-sm text-gray-400">N/A</span>
+                      <% } %>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="flex flex-wrap gap-1">
+                        <% if (video.tags && video.tags.length > 0) { %>
+                          <% video.tags.slice(0, 2).forEach(function(tag) { %>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><%= tag %></span>
+                          <% }); %>
+                          <% if (video.tags.length > 2) { %>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">+<%= video.tags.length - 2 %></span>
+                          <% } %>
+                        <% } else { %>
+                          <span class="text-sm text-gray-400">No tags</span>
+                        <% } %>
+                      </div>
+                    </td>
+                    <td class="py-3 px-4">
+                      <span class="text-sm text-gray-700"><%= video.uploaded_at ? new Date(video.uploaded_at).toLocaleDateString() : 'N/A' %></span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="flex items-center gap-2">
+                        <form action="/admin/content/<%= video.id %>/toggle" method="POST" class="inline">
+                          <button type="submit" class="<%= video.enabled !== false ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800' %> font-medium text-sm px-2 py-1 rounded hover:bg-gray-50 transition-colors">
+                            <%= video.enabled !== false ? 'Disable' : 'Enable' %>
+                          </button>
+                        </form>
+                        <button class="text-indigo-600 hover:text-indigo-800 font-medium text-sm px-2 py-1 rounded hover:bg-gray-50 transition-colors" onclick="editContent(<%= video.id %>)">Edit</button>
+                        <form action="/admin/content/<%= video.id %>/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this content?');" class="inline">
+                          <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm px-2 py-1 rounded hover:bg-gray-50 transition-colors">Delete</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } else { %>
+                <tr>
+                  <td colspan="10" class="text-center py-8">
+                    <div class="flex flex-col items-center">
+                      <i class="material-icons text-gray-400 text-4xl mb-2">video_library</i>
+                      <p class="text-gray-500 text-lg">No content uploaded yet</p>
+                      <p class="text-gray-400 text-sm">Start by uploading your first video</p>
+                    </div>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Upload Content Modal -->
+<div id="upload-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
+  <div class="modal bg-white rounded-lg shadow-elevation-8 max-w-2xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95 opacity-0" id="upload-modal-content">
+    <div class="modal-header py-4 px-6 flex items-center justify-between border-b border-gray-200">
+      <div class="modal-title text-xl font-medium text-gray-800">Upload New Content</div>
+      <button id="close-upload-modal" class="btn btn-icon text-gray-500 hover:bg-gray-100 rounded-full p-2 transition-colors duration-200">
+        <i class="material-icons">close</i>
+      </button>
+    </div>
+    
+    <form action="/admin/content/upload" method="POST" enctype="multipart/form-data" class="flex flex-col h-full">
+      <div class="modal-content py-6 px-6 flex-1 overflow-y-auto">
+        <div class="grid grid-cols-1 gap-6">
+          
+          <!-- Upload Method Toggle -->
+          <div class="form-group">
+            <label class="form-label">Upload Method</label>
+            <div class="flex gap-4 mt-2">
+              <label class="flex items-center">
+                <input type="radio" name="upload_method" value="url" class="upload-method-radio" checked>
+                <span class="ml-2">Video URL</span>
+              </label>
+              <label class="flex items-center">
+                <input type="radio" name="upload_method" value="file" class="upload-method-radio">
+                <span class="ml-2">Upload File</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Video URL Section -->
+          <div id="url-section" class="form-group">
+            <label for="video_url" class="form-label">Video URL</label>
+            <input type="url" id="video_url" name="video_url" class="form-control" placeholder="https://example.com/video.mp4">
+            <p class="text-sm text-gray-500 mt-1">Direct link to the video file (mp4, webm, etc.)</p>
+          </div>
+
+          <!-- File Upload Section -->
+          <div id="file-section" class="form-group hidden">
+            <label for="video_file" class="form-label">Upload Video File</label>
+            <input type="file" id="video_file" name="video_file" class="form-control" accept="video/*">
+            <p class="text-sm text-gray-500 mt-1">Maximum file size: 500MB. Supported formats: mp4, webm, avi, mov</p>
+          </div>
+
+          <!-- Basic Information -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Basic Information</h3>
+            <div class="grid grid-cols-1 gap-4">
+              <div class="form-group">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" id="title" name="title" class="form-control" placeholder="Enter video title">
+              </div>
+
+              <div class="form-group">
+                <label for="caption" class="form-label">Caption/Description</label>
+                <textarea id="caption" name="caption" class="form-control" rows="3" placeholder="Enter video caption or description"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="duration" class="form-label">Duration (seconds)</label>
+                <input type="number" id="duration" name="duration" class="form-control" placeholder="120" min="1">
+              </div>
+            </div>
+          </div>
+
+          <!-- Thumbnail Options -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Thumbnail</h3>
+            <div class="grid grid-cols-1 gap-4">
+              <div class="form-group">
+                <label for="thumbnail_url" class="form-label">Thumbnail URL</label>
+                <input type="url" id="thumbnail_url" name="thumbnail_url" class="form-control" placeholder="https://example.com/thumbnail.jpg">
+              </div>
+              <div class="form-group">
+                <label for="thumbnail_file" class="form-label">Or Upload Thumbnail</label>
+                <input type="file" id="thumbnail_file" name="thumbnail_file" class="form-control" accept="image/*">
+              </div>
+            </div>
+          </div>
+
+          <!-- Source Information -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Source Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="form-group">
+                <label for="source_name" class="form-label">Source Name</label>
+                <input type="text" id="source_name" name="source_name" class="form-control" placeholder="e.g., CNN, BBC News">
+              </div>
+              <div class="form-group">
+                <label for="source_image" class="form-label">Source Logo URL</label>
+                <input type="url" id="source_image" name="source_image" class="form-control" placeholder="https://example.com/logo.png">
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Classification -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Content Classification</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="form-group">
+                <label for="content_category" class="form-label">Content Category</label>
+                <select id="content_category" name="content_category" class="form-control">
+                  <option value="">Select category</option>
+                  <option value="news">News</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="education">Education</option>
+                  <option value="sports">Sports</option>
+                  <option value="technology">Technology</option>
+                  <option value="politics">Politics</option>
+                  <option value="health">Health</option>
+                  <option value="business">Business</option>
+                  <option value="lifestyle">Lifestyle</option>
+                  <option value="opinion">Opinion</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="content_genre" class="form-label">Content Genre</label>
+                <select id="content_genre" name="content_genre" class="form-control">
+                  <option value="">Select genre</option>
+                  <option value="breaking_news">Breaking News</option>
+                  <option value="investigative">Investigative</option>
+                  <option value="analysis">Analysis</option>
+                  <option value="interview">Interview</option>
+                  <option value="documentary">Documentary</option>
+                  <option value="live_report">Live Report</option>
+                  <option value="feature_story">Feature Story</option>
+                  <option value="explainer">Explainer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="news_type" class="form-label">News Type</label>
+                <select id="news_type" name="news_type" class="form-control">
+                  <option value="">Select type</option>
+                  <option value="hard_news">Hard News</option>
+                  <option value="soft_news">Soft News</option>
+                  <option value="breaking">Breaking</option>
+                  <option value="feature">Feature</option>
+                  <option value="opinion">Opinion</option>
+                  <option value="analysis">Analysis</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="target_audience" class="form-label">Target Audience</label>
+                <select id="target_audience" name="target_audience" class="form-control">
+                  <option value="">Select audience</option>
+                  <option value="general">General Public</option>
+                  <option value="young_adults">Young Adults (18-29)</option>
+                  <option value="adults">Adults (30-49)</option>
+                  <option value="middle_aged">Middle Aged (50-64)</option>
+                  <option value="seniors">Seniors (65+)</option>
+                  <option value="professionals">Professionals</option>
+                  <option value="students">Students</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Engagement Analysis Metadata -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Engagement Analysis</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="form-group">
+                <label for="sentiment" class="form-label">Sentiment</label>
+                <select id="sentiment" name="sentiment" class="form-control">
+                  <option value="">Select sentiment</option>
+                  <option value="positive">Positive</option>
+                  <option value="negative">Negative</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="emotional_tone" class="form-label">Emotional Tone</label>
+                <select id="emotional_tone" name="emotional_tone" class="form-control">
+                  <option value="">Select tone</option>
+                  <option value="calm">Calm</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="dramatic">Dramatic</option>
+                  <option value="upbeat">Upbeat</option>
+                  <option value="serious">Serious</option>
+                  <option value="humorous">Humorous</option>
+                  <option value="inspiring">Inspiring</option>
+                  <option value="concerning">Concerning</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="controversy_level" class="form-label">Controversy Level (1-10)</label>
+                <input type="range" id="controversy_level" name="controversy_level" min="1" max="10" value="5" class="form-control">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Low</span>
+                  <span>Medium</span>
+                  <span>High</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="complexity_level" class="form-label">Complexity Level</label>
+                <select id="complexity_level" name="complexity_level" class="form-control">
+                  <option value="">Select level</option>
+                  <option value="simple">Simple</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="complex">Complex</option>
+                  <option value="expert">Expert Level</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="engagement_prediction" class="form-label">Engagement Prediction (0-1)</label>
+                <input type="number" id="engagement_prediction" name="engagement_prediction" class="form-control" min="0" max="1" step="0.1" placeholder="0.7">
+                <p class="text-sm text-gray-500 mt-1">Predicted engagement score (0 = low, 1 = high)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Production & Technical -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Production & Technical</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="form-group">
+                <label for="visual_style" class="form-label">Visual Style</label>
+                <select id="visual_style" name="visual_style" class="form-control">
+                  <option value="">Select style</option>
+                  <option value="live_action">Live Action</option>
+                  <option value="animation">Animation</option>
+                  <option value="mixed_media">Mixed Media</option>
+                  <option value="graphics_heavy">Graphics Heavy</option>
+                  <option value="talking_head">Talking Head</option>
+                  <option value="documentary">Documentary Style</option>
+                  <option value="news_studio">News Studio</option>
+                  <option value="field_report">Field Report</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="production_quality" class="form-label">Production Quality</label>
+                <select id="production_quality" name="production_quality" class="form-control">
+                  <option value="">Select quality</option>
+                  <option value="professional">Professional</option>
+                  <option value="semi_professional">Semi-Professional</option>
+                  <option value="amateur">Amateur</option>
+                  <option value="user_generated">User Generated</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="language" class="form-label">Language</label>
+                <select id="language" name="language" class="form-control">
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="zh">Chinese</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ar">Arabic</option>
+                  <option value="hi">Hindi</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reading_level" class="form-label">Reading Level</label>
+                <select id="reading_level" name="reading_level" class="form-control">
+                  <option value="">Select level</option>
+                  <option value="elementary">Elementary</option>
+                  <option value="middle_school">Middle School</option>
+                  <option value="high_school">High School</option>
+                  <option value="college">College</option>
+                  <option value="graduate">Graduate</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Metadata -->
+          <div class="border-t pt-6">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Advanced Metadata</h3>
+            <div class="grid grid-cols-1 gap-4">
+              <div class="form-group">
+                <label for="content_themes" class="form-label">Content Themes</label>
+                <input type="text" id="content_themes" name="content_themes" class="form-control" placeholder="e.g., social justice, economic policy, climate change (comma-separated)">
+                <p class="text-sm text-gray-500 mt-1">Separate multiple themes with commas</p>
+              </div>
+              <div class="form-group">
+                <label for="geographic_relevance" class="form-label">Geographic Relevance</label>
+                <input type="text" id="geographic_relevance" name="geographic_relevance" class="form-control" placeholder="e.g., United States, Global, New York City">
+              </div>
+              <div class="form-group">
+                <label for="audio_characteristics" class="form-label">Audio Characteristics</label>
+                <input type="text" id="audio_characteristics" name="audio_characteristics" class="form-control" placeholder="e.g., music, narrator, multiple speakers (comma-separated)">
+                <p class="text-sm text-gray-500 mt-1">Separate multiple characteristics with commas</p>
+              </div>
+              <div class="form-group">
+                <label for="tags" class="form-label">Tags</label>
+                <input type="text" id="tags" name="tags" class="form-control" placeholder="news, politics, breaking (comma-separated)">
+                <p class="text-sm text-gray-500 mt-1">Separate multiple tags with commas</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer py-4 px-6 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" id="cancel-upload" class="btn btn-secondary px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200">Cancel</button>
+        <button type="submit" class="btn btn-primary px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded-md transition-colors duration-200">Upload Content</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Menu toggle functionality
+const menuToggle = document.getElementById('menu-toggle');
+const sidebar = document.querySelector('.sidebar');
+const mainContent = document.querySelector('.main-content');
+menuToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('sidebar-hidden');
+  mainContent.classList.toggle('main-content-full');
+});
+
+// Upload modal functionality
+const uploadBtn = document.getElementById('upload-content-btn');
+const uploadModal = document.getElementById('upload-modal');
+const uploadModalContent = document.getElementById('upload-modal-content');
+const closeUploadModal = document.getElementById('close-upload-modal');
+const cancelUpload = document.getElementById('cancel-upload');
+
+function showUploadModal() {
+  uploadModal.classList.remove('hidden');
+  setTimeout(() => {
+    uploadModalContent.classList.remove('scale-95', 'opacity-0');
+    uploadModalContent.classList.add('scale-100', 'opacity-100');
+  }, 10);
+}
+
+function hideUploadModal() {
+  uploadModalContent.classList.add('scale-95', 'opacity-0');
+  uploadModalContent.classList.remove('scale-100', 'opacity-100');
+  setTimeout(() => {
+    uploadModal.classList.add('hidden');
+  }, 300);
+}
+
+uploadBtn.addEventListener('click', showUploadModal);
+closeUploadModal.addEventListener('click', hideUploadModal);
+cancelUpload.addEventListener('click', hideUploadModal);
+
+// Close modal when clicking outside
+uploadModal.addEventListener('click', (e) => {
+  if (e.target === uploadModal) {
+    hideUploadModal();
+  }
+});
+
+// Upload method toggle functionality
+const uploadMethodRadios = document.querySelectorAll('.upload-method-radio');
+const urlSection = document.getElementById('url-section');
+const fileSection = document.getElementById('file-section');
+const videoUrlInput = document.getElementById('video_url');
+const videoFileInput = document.getElementById('video_file');
+
+uploadMethodRadios.forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (radio.value === 'url') {
+      urlSection.classList.remove('hidden');
+      fileSection.classList.add('hidden');
+      videoUrlInput.required = true;
+      videoFileInput.required = false;
+    } else {
+      urlSection.classList.add('hidden');
+      fileSection.classList.remove('hidden');
+      videoUrlInput.required = false;
+      videoFileInput.required = true;
+    }
+  });
+});
+
+// Form validation - only for upload form
+document.querySelector('#upload-modal form').addEventListener('submit', function(e) {
+  const uploadMethod = document.querySelector('input[name="upload_method"]:checked').value;
+  const videoUrl = document.getElementById('video_url').value;
+  const videoFile = document.getElementById('video_file').files[0];
+  
+  if (uploadMethod === 'url' && !videoUrl) {
+    e.preventDefault();
+    alert('Please provide a video URL or switch to file upload.');
+    return;
+  }
+  
+  if (uploadMethod === 'file' && !videoFile) {
+    e.preventDefault();
+    alert('Please select a video file or switch to URL upload.');
+    return;
+  }
+
+  if (videoFile && videoFile.size > 500 * 1024 * 1024) {
+    e.preventDefault();
+    alert('Video file is too large. Maximum size is 500MB.');
+    return;
+  }
+});
+
+// Controversy level slider display
+const controversySlider = document.getElementById('controversy_level');
+if (controversySlider) {
+  const updateSliderDisplay = () => {
+    const value = controversySlider.value;
+    const labels = controversySlider.parentElement.querySelector('.flex');
+    labels.innerHTML = `
+      <span class="text-xs text-gray-500">Low (${value <= 3 ? 'Selected' : value})</span>
+      <span class="text-xs text-gray-${value >= 4 && value <= 7 ? '800 font-medium' : '500'}">Medium (${value >= 4 && value <= 7 ? 'Selected' : value})</span>
+      <span class="text-xs text-gray-${value >= 8 ? '800 font-medium' : '500'}">High (${value >= 8 ? 'Selected' : value})</span>
+    `;
+  };
+  controversySlider.addEventListener('input', updateSliderDisplay);
+  updateSliderDisplay();
+}
+
+// Edit content function
+function editContent(contentId) {
+  // TODO: Implement edit functionality
+  alert('Edit functionality coming soon!');
+}
+</script>
+
+</body>
+</html> 

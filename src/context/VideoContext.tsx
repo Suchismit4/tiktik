@@ -7,7 +7,7 @@
 import React, { createContext, useState, useContext, ReactNode, useRef, useCallback, useEffect } from 'react';
 import { Post, SurveyResponse } from '../types';
 import { VIDEOS } from '../constants/videos';
-import { postsApi } from '../services/api';
+import { postsApi, getBestVideoUrl } from '../services/api';
 
 // Video context interface
 interface VideoContextType {
@@ -68,10 +68,40 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const data = await postsApi.getPosts();
-        setVideos(data);
+        console.log('Fetching videos from API...');
+        const apiVideos = await postsApi.getPosts();
+        console.log('API Videos received:', apiVideos);
+        
+        if (apiVideos && apiVideos.length > 0) {
+          // Process videos to get the best available URLs (streaming or fallback)
+          const processedVideos = await Promise.all(
+            apiVideos.map(async (video: Post) => {
+              try {
+                const bestUrl = await getBestVideoUrl(video);
+                console.log(`Video ${video.id}: Using URL ${bestUrl}`);
+                return {
+                  ...video,
+                  uri: bestUrl,
+                  originalUri: video.uri, // Keep original for reference
+                  isStreaming: bestUrl.includes('/stream/'),
+                };
+              } catch (error) {
+                console.error(`Error processing video ${video.id}:`, error);
+                return video; // Return original if processing fails
+              }
+            })
+          );
+          
+          setVideos(processedVideos);
+          console.log('Videos set from API with streaming URLs:', processedVideos.length);
+        } else {
+          console.log('No videos from API, using fallback constants');
+          setVideos(VIDEOS);
+        }
       } catch (error) {
-        console.error('Failed to fetch videos:', error);
+        console.error('Error fetching videos from API:', error);
+        console.log('Using fallback video constants due to API error');
+        setVideos(VIDEOS);
       }
     };
     fetchVideos();

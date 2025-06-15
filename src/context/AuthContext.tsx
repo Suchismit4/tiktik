@@ -1,18 +1,19 @@
 /**
- * Auth Context
+ * Auth Context - TEMPORARILY DISABLED FIREBASE FOR TESTING
  * 
  * Provides authentication state and methods throughout the application.
- * Handles user login, registration, and logout using Firebase Authentication.
+ * Currently using mock data to test app functionality without Firebase.
  */
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { 
-  onAuthStateChanged, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut,
-  User as FirebaseUser
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
+// TEMPORARILY COMMENTED OUT FIREBASE IMPORTS
+// import { 
+//   onAuthStateChanged, 
+//   createUserWithEmailAndPassword, 
+//   signInWithEmailAndPassword,
+//   signOut,
+//   User as FirebaseUser
+// } from 'firebase/auth';
+// import { auth } from '../config/firebase';
 import { User } from '../types';
 
 // Context interface
@@ -39,10 +40,9 @@ interface AuthProviderProps {
 }
 
 /**
- * Auth Provider Component
+ * Auth Provider Component - MOCK VERSION
  * 
- * Provides authentication context to the application.
- * Listens for auth state changes and provides auth methods.
+ * Provides mock authentication for testing without Firebase.
  * 
  * @param {AuthProviderProps} props - The provider props
  */
@@ -50,62 +50,62 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Listen for Firebase auth state changes
+  // Mock auth state - simulate logged out user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        // Transform Firebase user to our User type
-        setUser({
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          username: firebaseUser.displayName || undefined,
-        });
-      } else {
-        setUser(null);
-      }
+    // Simulate loading time then set to logged out
+    const timer = setTimeout(() => {
+      setUser(null);
       setLoading(false);
-    });
+    }, 1000);
 
-    // Cleanup subscription on unmount
-    return unsubscribe;
+    return () => clearTimeout(timer);
   }, []);
 
   /**
-   * Login with email and password
-   * @param {string} email - User email
-   * @param {string} password - User password
+   * Mock login function
    */
   const login = async (email: string, password: string): Promise<void> => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      console.log('Mock login for:', email);
+      // Simulate successful login
+      setUser({
+        id: 'mock-user-id',
+        email: email,
+        username: 'Mock User',
+      });
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Mock login error:', error);
       throw error;
     }
   };
 
   /**
-   * Register with email and password
-   * @param {string} email - User email
-   * @param {string} password - User password
+   * Mock register function
    */
   const register = async (email: string, password: string): Promise<void> => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      console.log('Mock register for:', email);
+      // Simulate successful registration
+      setUser({
+        id: 'mock-user-id',
+        email: email,
+        username: 'Mock User',
+      });
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Mock register error:', error);
       throw error;
     }
   };
 
   /**
-   * Logout the current user
+   * Mock logout function
    */
   const logout = async (): Promise<void> => {
     try {
-      await signOut(auth);
+      console.log('Mock logout');
+      setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Mock logout error:', error);
       throw error;
     }
   };

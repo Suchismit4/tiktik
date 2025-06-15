@@ -6,7 +6,94 @@
  */
 
 // Base URL for API calls
-const API_BASE_URL = 'http://fun-walleye-sharing.ngrok-free.app/api';
+const API_BASE_URL = 'http://192.168.1.10:3000/api';
+
+/**
+ * Process video URLs to use streaming endpoints when available
+ * @param {any} post - Post object with video data
+ * @returns {any} Post object with processed streaming URLs
+ */
+function processVideoUrls(post: any): any {
+  if (!post) return post;
+
+  // Create a copy to avoid mutating the original
+  const processedPost = { ...post };
+
+  // Check if the video URL is a streaming endpoint (starts with /api/stream/)
+  if (post.uri && post.uri.startsWith('/api/stream/')) {
+    // Already a streaming URL, convert to full URL
+    processedPost.uri = `${API_BASE_URL.replace('/api', '')}${post.uri}`;
+    processedPost.streamingUrl = processedPost.uri;
+    processedPost.fallbackUrl = post.fallback_url || post.original_url || null;
+  } else if (post.uri) {
+    // External URL, check if streaming version exists and set up fallback
+    processedPost.streamingUrl = null; // Will be checked dynamically
+    processedPost.fallbackUrl = post.uri;
+    processedPost.uri = post.uri; // Keep original for now
+  }
+
+  // Process thumbnail URLs similarly
+  if (post.thumbnail_url && post.thumbnail_url.startsWith('/api/stream/')) {
+    processedPost.thumbnail_url = `${API_BASE_URL.replace('/api', '')}${post.thumbnail_url}`;
+  }
+
+  return processedPost;
+}
+
+/**
+ * Check if a streaming URL is available for a video
+ * @param {string} videoId - Video ID or filename
+ * @returns {Promise<string|null>} Streaming URL if available, null otherwise
+ */
+async function checkStreamingAvailability(videoId: string): Promise<string | null> {
+  try {
+    const streamingUrl = `${API_BASE_URL}/stream/video/${videoId}`;
+    console.log(`Checking streaming availability for: ${streamingUrl}`);
+    const response = await fetch(streamingUrl, { method: 'HEAD' });
+    console.log(`Streaming check result for ${videoId}: ${response.status} ${response.ok ? 'OK' : 'FAILED'}`);
+    return response.ok ? streamingUrl : null;
+  } catch (error) {
+    console.log(`Streaming check failed for ${videoId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get the best available video URL (streaming first, then fallback)
+ * @param {any} post - Post object with video data
+ * @returns {Promise<string>} Best available video URL
+ */
+export async function getBestVideoUrl(post: any): Promise<string> {
+  console.log(`Getting best video URL for post ${post.id}:`, post.uri);
+  
+  // If we already have a streaming URL, use it
+  if (post.streamingUrl) {
+    console.log(`Using existing streaming URL: ${post.streamingUrl}`);
+    return post.streamingUrl;
+  }
+
+  // If we have a video ID or can extract one, try streaming
+  if (post.id) {
+    const streamingUrl = await checkStreamingAvailability(post.id.toString());
+    if (streamingUrl) {
+      console.log(`Found streaming URL for ID ${post.id}: ${streamingUrl}`);
+      return streamingUrl;
+    }
+  }
+
+  // Extract potential filename from original URL for streaming check
+  if (post.uri && !post.uri.startsWith('http')) {
+    const streamingUrl = await checkStreamingAvailability(post.uri);
+    if (streamingUrl) {
+      console.log(`Found streaming URL for filename: ${streamingUrl}`);
+      return streamingUrl;
+    }
+  }
+
+  // Fall back to original URL
+  console.log(`Using fallback URL: ${post.fallbackUrl || post.uri}`);
+  return post.fallbackUrl || post.uri;
+}
 
 /**
  * Generic fetch helper with error handling
@@ -44,17 +131,23 @@ async function fetchWithErrorHandling(endpoint: string, options: RequestInit = {
  */
 export const postsApi = {
   /**
-   * Get all posts
-   * @returns {Promise<any>} Posts data
+   * Get all posts with streaming URL processing
+   * @returns {Promise<any>} Posts data with processed streaming URLs
    */
-  getPosts: () => fetchWithErrorHandling('/posts'),
+  getPosts: async () => {
+    const posts = await fetchWithErrorHandling('/posts');
+    return posts.map(processVideoUrls);
+  },
 
   /**
-   * Get a post by ID
+   * Get a post by ID with streaming URL processing
    * @param {string|number} id - Post ID
-   * @returns {Promise<any>} Post data
+   * @returns {Promise<any>} Post data with processed streaming URLs
    */
-  getPost: (id: string | number) => fetchWithErrorHandling(`/posts/${id}`),
+  getPost: async (id: string | number) => {
+    const post = await fetchWithErrorHandling(`/posts/${id}`);
+    return processVideoUrls(post);
+  },
 
   /**
    * Create a new post

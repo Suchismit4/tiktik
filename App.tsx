@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './src/navigation/AppNavigator';
 
 // Ignore specific warnings if they're not relevant
@@ -20,7 +21,11 @@ LogBox.ignoreLogs([
  * @returns {JSX.Element} The root component
  */
 const App: React.FC = () => {
-  return <AppNavigator />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppNavigator />
+    </GestureHandlerRootView>
+  );
 };
 
 export default App; 

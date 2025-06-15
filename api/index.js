@@ -48,8 +48,11 @@ app.get('/', (req, res) => {
 app.use('/api/posts', postsRoutes);
 app.use('/api/users', usersRoutes);
 
-// Admin Panel routes
+// Admin Panel routes (includes streaming endpoints)
 app.use('/admin', adminRoutes);
+
+// API streaming routes (for mobile app access)
+app.use('/api', adminRoutes);
 
 // Start server
 app.listen(PORT, () => {
