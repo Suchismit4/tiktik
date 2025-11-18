@@ -32,6 +32,9 @@
             <a href="/admin/participants" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
                 <i class="material-icons mr-4">people</i> Participants
             </a>
+            <a href="/admin/groups" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                <i class="material-icons mr-4">groups</i> Groups
+            </a>
             <a href="/admin/content" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
                 <i class="material-icons mr-4">video_library</i> Content
             </a>
@@ -45,8 +48,20 @@
         <div class="card bg-white rounded-lg shadow-elevation-1 p-8 w-full max-w-md">
             <h1 class="text-xl font-bold mb-6 text-center">Settings</h1>
             <div class="flex flex-col gap-4">
-                <button class="btn btn-primary w-full py-2 rounded">Log In</button>
-                <button class="btn btn-secondary w-full py-2 rounded">Log Out</button>
+                <!-- Sign in with Google button -->
+                <a href="/login/federated/google" 
+                   class="flex items-center justify-center gap-2 w-full py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-100 transition duration-200">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" class="w-5 h-5">
+                    Sign in with Google
+                </a>
+
+                <!-- Optional buttons (disabled or linked to your routes) -->
+                <form action="/logout" method="post">
+                    <button type="submit" 
+                            class="btn btn-secondary w-full py-2 rounded hover:bg-gray-200 transition duration-200">
+                        Log Out
+                    </button>
+                </form>
             </div>
         </div>
     </main>

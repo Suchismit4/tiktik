@@ -50,6 +50,95 @@ const upload = multer({
   }
 });
 
+// ---- Group utilities and mock storage (until DB table exists) ----
+// Normalize a comma-separated tags string into a canonical, order-insensitive string
+function canonicalizeTags(tagsInput) {
+  if (!tagsInput) return '';
+  const tagsArray = Array.isArray(tagsInput)
+    ? tagsInput
+    : String(tagsInput).split(',');
+  const uniqueSorted = [...new Set(tagsArray.map(t => t.trim().toLowerCase()).filter(Boolean))].sort();
+  return uniqueSorted.join(',');
+}
+
+// In-memory mock groups used for rendering when DB is not implemented
+const MOCK_GROUPS = [
+  {
+    id: 1,
+    name: 'Control Group A',
+    description: 'Baseline control group for A/B testing',
+    status: 'active',
+    type: 'control',
+    member_count: 25,
+    experiment_count: 3,
+    created_at: '2024-01-15T10:30:00Z',
+    tags: ['control', 'baseline', 'ab-test']
+  },
+  {
+    id: 2,
+    name: 'Treatment Group B',
+    description: 'Experimental group with new features',
+    status: 'active',
+    type: 'treatment',
+    member_count: 23,
+    experiment_count: 3,
+    created_at: '2024-01-15T10:35:00Z',
+    tags: ['treatment', 'experimental', 'ab-test']
+  },
+  {
+    id: 3,
+    name: 'Demographic Group - Young Adults',
+    description: 'Participants aged 18-29 for demographic studies',
+    status: 'active',
+    type: 'demographic',
+    member_count: 18,
+    experiment_count: 1,
+    created_at: '2024-01-20T14:20:00Z',
+    tags: ['demographic', 'young-adults', 'age-based']
+  },
+  {
+    id: 4,
+    name: 'Behavioral Group - High Engagement',
+    description: 'Users with high engagement patterns',
+    status: 'inactive',
+    type: 'behavioral',
+    member_count: 12,
+    experiment_count: 0,
+    created_at: '2024-01-25T09:15:00Z',
+    tags: ['behavioral', 'high-engagement', 'power-users']
+  }
+];
+
+function isDuplicateTagSetCanonical(canonicalTags, excludeId) {
+  // Try DB first if available; fallback to MOCK_GROUPS
+  // Note: groups table schema unknown; we assume a text column 'tags' storing comma-separated tags or text[]
+  // We'll handle DB in route handlers to keep async context; this function checks MOCK_GROUPS only
+  return MOCK_GROUPS.some(g => {
+    if (excludeId && Number(g.id) === Number(excludeId)) return false;
+    const otherCanonical = canonicalizeTags(g.tags);
+    return otherCanonical === canonicalTags;
+  });
+}
+
+// In-memory membership tracking until DB is available
+// Maps groupId -> Set<userId>
+const GROUP_MEMBERS = new Map();
+// Maps userId -> groupId
+const USER_TO_GROUP = new Map();
+
+function ensureGroupSet(groupId) {
+  const gid = Number(groupId);
+  if (!GROUP_MEMBERS.has(gid)) GROUP_MEMBERS.set(gid, new Set());
+  return GROUP_MEMBERS.get(gid);
+}
+
+function updateGroupMemberCounts() {
+  for (const g of MOCK_GROUPS) {
+    const set = GROUP_MEMBERS.get(Number(g.id));
+    g.member_count = set ? set.size : g.member_count || 0;
+  }
+}
+
 // GET /admin - Render the admin panel
 router.get('/', async (req, res) => {
     try {
@@ -289,9 +378,13 @@ router.get('/participants', async (req, res) => {
       disabled: false // Placeholder, Firebase disabled status not in app_users
     }));
 
+    // Expose groups to the view for assignment dropdown
+    updateGroupMemberCounts();
     res.render('participants', { 
       title: 'Manage Participants', 
       participants: participants,
+      groups: MOCK_GROUPS,
+      message: req.query.message,
       error: null 
     });
   } catch (error) {
@@ -322,7 +415,7 @@ router.post('/experiments/:id/assign-participants', async (req, res) => {
     }
     const experiment = expResult.rows[0]; 
     
-    // Find users not already in this experiment
+    // Find users not already in this experiment (no double assigning)
     const availableUsersQuery = `
       SELECT user_id FROM app_users 
       WHERE user_id NOT IN (
@@ -738,4 +831,402 @@ router.get('/stream/thumbnail/:filename', (req, res) => {
   fs.createReadStream(thumbnailPath).pipe(res);
 });
 
-module.exports = router; 
+// GET /admin/groups - View groups management page
+router.get('/groups', async (req, res) => {
+  try {
+    // Query groups with tag names joined
+    // Handle cases where group_members or experiment_groups tables might not exist
+    let groupsQuery = `
+      SELECT 
+        g.group_id,
+        g.description,
+        g.max_participants,
+        g.tag_ids,
+        g.status,
+        COALESCE(array_agg(DISTINCT t.tag_name) FILTER (WHERE t.tag_id IS NOT NULL), ARRAY[]::TEXT[]) as tag_names
+      FROM groups g
+      LEFT JOIN unnest(COALESCE(g.tag_ids, ARRAY[]::INTEGER[])) AS tag_id ON true
+      LEFT JOIN tags t ON t.tag_id = tag_id
+      GROUP BY g.group_id, g.description, g.max_participants, g.tag_ids, g.status
+      ORDER BY g.group_id DESC
+    `;
+    
+    const { rows } = await db.query(groupsQuery);
+    
+    // Get member counts and experiment counts separately (handle missing tables gracefully)
+    let memberCounts = {};
+    let experimentCounts = {};
+    
+    try {
+      const memberQuery = 'SELECT group_id, COUNT(*) as count FROM group_members GROUP BY group_id';
+      const memberResult = await db.query(memberQuery);
+      memberResult.rows.forEach(row => {
+        memberCounts[row.group_id] = parseInt(row.count);
+      });
+    } catch (e) {
+      // group_members table doesn't exist, use empty counts
+      console.log('group_members table not found, using empty counts');
+    }
+    
+    try {
+      const expQuery = 'SELECT group_id, COUNT(*) as count FROM experiment_groups GROUP BY group_id';
+      const expResult = await db.query(expQuery);
+      expResult.rows.forEach(row => {
+        experimentCounts[row.group_id] = parseInt(row.count);
+      });
+    } catch (e) {
+      // experiment_groups table doesn't exist, use empty counts
+      console.log('experiment_groups table not found, using empty counts');
+    }
+    
+    // Transform data for view
+    const groups = rows.map(row => ({
+      id: row.group_id,
+      description: row.description || '',
+      max_participants: row.max_participants,
+      tag_ids: row.tag_ids || [],
+      tag_names: row.tag_names || [],
+      status: row.status === 1 ? 'active' : 'inactive',
+      member_count: memberCounts[row.group_id] || 0,
+      experiment_count: experimentCounts[row.group_id] || 0
+    }));
+    
+    // Also fetch all available tags for the form
+    const tagsQuery = 'SELECT tag_id, tag_name, tag_category FROM tags ORDER BY tag_category, tag_name';
+    const tagsResult = await db.query(tagsQuery);
+    
+    res.render('groups', {
+      title: 'Group Management',
+      groups: groups,
+      availableTags: tagsResult.rows,
+      message: req.query.message,
+      error: req.query.error
+    });
+  } catch (error) {
+    console.error('Error loading groups page:', error);
+    res.render('groups', {
+      title: 'Group Management',
+      groups: [],
+      availableTags: [],
+      error: 'Could not load groups data.'
+    });
+  }
+});
+
+// POST /admin/groups/create - Create a new group
+router.post('/groups/create', async (req, res) => {
+  try {
+    const {
+      description,
+      status,
+      max_participants,
+      tag_ids
+    } = req.body;
+
+    // Convert status to 0/1
+    const statusValue = status === 'active' || status === '1' ? 1 : 0;
+    
+    // Parse tag_ids - can be comma-separated string or array
+    // Empty tag_ids is valid - groups can have no tags
+    let tagIdsArray = [];
+    if (tag_ids) {
+      if (Array.isArray(tag_ids)) {
+        tagIdsArray = tag_ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+      } else if (typeof tag_ids === 'string' && tag_ids.trim() !== '') {
+        tagIdsArray = tag_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      }
+    }
+
+    // Validate tag set uniqueness (compare sorted tag_ids arrays)
+    // Empty arrays are considered the same tag set, so only one group can have no tags
+    const sortedTagIds = [...tagIdsArray].sort((a, b) => a - b);
+    const { rows: existingGroups } = await db.query(
+      'SELECT group_id, tag_ids FROM groups'
+    );
+    
+    for (const row of existingGroups) {
+      const existingTagIds = (row.tag_ids || []).sort((a, b) => a - b);
+      if (existingTagIds.length === sortedTagIds.length &&
+          existingTagIds.every((id, idx) => id === sortedTagIds[idx])) {
+        return res.redirect('/admin/groups?error=Another group already has the exact same tag set');
+      }
+    }
+
+    // Insert into database
+    // Use NULL for empty tag arrays to be consistent with database schema
+    const insertQuery = `
+      INSERT INTO groups (description, max_participants, tag_ids, status)
+      VALUES ($1, $2, $3, $4)
+      RETURNING group_id
+    `;
+    const values = [
+      description || null,
+      max_participants ? parseInt(max_participants) : null,
+      tagIdsArray.length > 0 ? tagIdsArray : null,
+      statusValue
+    ];
+    
+    const { rows } = await db.query(insertQuery, values);
+    const newGroupId = rows[0].group_id;
+
+    res.redirect('/admin/groups?message=Group created successfully');
+  } catch (error) {
+    console.error('Error creating group:', error);
+    res.redirect('/admin/groups?error=Failed to create group: ' + error.message);
+  }
+});
+
+// POST /admin/groups/:id/edit - Edit an existing group
+router.post('/groups/:id/edit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      description,
+      status,
+      max_participants,
+      tag_ids
+    } = req.body;
+
+    // Convert status to 0/1
+    const statusValue = status === 'active' || status === '1' ? 1 : 0;
+    
+    // Parse tag_ids
+    // Empty tag_ids is valid - groups can have no tags
+    let tagIdsArray = [];
+    if (tag_ids) {
+      if (Array.isArray(tag_ids)) {
+        tagIdsArray = tag_ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+      } else if (typeof tag_ids === 'string' && tag_ids.trim() !== '') {
+        tagIdsArray = tag_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      }
+    }
+
+    // Validate tag set uniqueness (excluding current group)
+    // Empty arrays are considered the same tag set, so only one group can have no tags
+    const sortedTagIds = [...tagIdsArray].sort((a, b) => a - b);
+    const { rows: existingGroups } = await db.query(
+      'SELECT group_id, tag_ids FROM groups WHERE group_id <> $1',
+      [id]
+    );
+    
+    for (const row of existingGroups) {
+      const existingTagIds = (row.tag_ids || []).sort((a, b) => a - b);
+      if (existingTagIds.length === sortedTagIds.length &&
+          existingTagIds.every((id, idx) => id === sortedTagIds[idx])) {
+        return res.redirect('/admin/groups?error=Another group already has the exact same tag set');
+      }
+    }
+
+    // Update in database
+    // Use NULL for empty tag arrays to be consistent with database schema
+    const updateQuery = `
+      UPDATE groups 
+      SET description = $1, max_participants = $2, tag_ids = $3, status = $4
+      WHERE group_id = $5
+      RETURNING group_id
+    `;
+    const values = [
+      description || null,
+      max_participants ? parseInt(max_participants) : null,
+      tagIdsArray.length > 0 ? tagIdsArray : null,
+      statusValue,
+      id
+    ];
+    
+    const { rows } = await db.query(updateQuery, values);
+    
+    if (rows.length === 0) {
+      return res.redirect('/admin/groups?error=Group not found');
+    }
+
+    res.redirect('/admin/groups?message=Group updated successfully');
+  } catch (error) {
+    console.error(`Error updating group ${req.params.id}:`, error);
+    res.redirect('/admin/groups?error=Failed to update group: ' + error.message);
+  }
+});
+
+// POST /admin/groups/:id/delete - Delete a group
+router.post('/groups/:id/delete', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deleteQuery = `
+      DELETE FROM groups 
+      WHERE group_id = $1
+      RETURNING group_id
+    `;
+    const { rows } = await db.query(deleteQuery, [id]);
+
+    if (rows.length === 0) {
+      return res.redirect('/admin/groups?error=Group not found');
+    }
+
+    console.log(`Group ${id} deleted`);
+
+    res.redirect('/admin/groups?message=Group deleted successfully');
+  } catch (error) {
+    console.error(`Error deleting group ${req.params.id}:`, error);
+    res.redirect('/admin/groups?error=Failed to delete group: ' + error.message);
+  }
+});
+
+// GET /admin/groups/:id - Get single group for editing
+router.get('/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const groupQuery = `
+      SELECT 
+        g.group_id,
+        g.description,
+        g.max_participants,
+        g.tag_ids,
+        g.status,
+        COALESCE(array_agg(t.tag_name) FILTER (WHERE t.tag_id IS NOT NULL), ARRAY[]::TEXT[]) as tag_names
+      FROM groups g
+      LEFT JOIN unnest(g.tag_ids) AS tag_id ON true
+      LEFT JOIN tags t ON t.tag_id = tag_id
+      WHERE g.group_id = $1
+      GROUP BY g.group_id, g.description, g.max_participants, g.tag_ids, g.status
+    `;
+    
+    const { rows } = await db.query(groupQuery, [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    const group = {
+      id: rows[0].group_id,
+      description: rows[0].description || '',
+      max_participants: rows[0].max_participants,
+      tag_ids: rows[0].tag_ids || [],
+      tag_names: rows[0].tag_names || [],
+      status: rows[0].status === 1 ? 'active' : 'inactive'
+    };
+    
+    res.json(group);
+  } catch (error) {
+    console.error(`Error fetching group ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to fetch group' });
+  }
+});
+
+// GET /admin/groups/:id/members - View group members
+router.get('/groups/:id/members', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // TODO: Implement when group members table is ready
+    // const queryText = `
+    //   SELECT au.user_id, au.firebase_uid, gm.joined_at, gm.status
+    //   FROM group_members gm
+    //   JOIN app_users au ON gm.user_id = au.user_id
+    //   WHERE gm.group_id = $1
+    //   ORDER BY gm.joined_at DESC;
+    // `;
+    // const { rows } = await db.query(queryText, [id]);
+
+    res.json({
+      group_id: id,
+      members: [], // rows
+      message: 'Group members endpoint - to be implemented'
+    });
+  } catch (error) {
+    console.error(`Error fetching group ${id} members:`, error);
+    res.status(500).json({ error: 'Failed to fetch group members' });
+  }
+});
+
+// POST /admin/groups/:id/add-member - Add member to group
+router.post('/groups/:id/add-member', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    // TODO: Implement when group members table is ready
+    // const queryText = `
+    //   INSERT INTO group_members (group_id, user_id, joined_at, status)
+    //   VALUES ($1, $2, NOW(), 'active')
+    //   ON CONFLICT (group_id, user_id) DO NOTHING
+    //   RETURNING group_id, user_id;
+    // `;
+    // const { rows } = await db.query(queryText, [id, user_id]);
+
+    console.log(`User ${user_id} added to group ${id}`);
+
+    res.redirect(`/admin/groups/${id}/members?message=Member added successfully`);
+  } catch (error) {
+    console.error(`Error adding member to group ${id}:`, error);
+    res.redirect(`/admin/groups/${id}/members?error=Failed to add member`);
+  }
+});
+
+// POST /admin/groups/:id/remove-member - Remove member from group
+router.post('/groups/:id/remove-member', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    // TODO: Implement when group members table is ready
+    // const queryText = `
+    //   DELETE FROM group_members 
+    //   WHERE group_id = $1 AND user_id = $2
+    //   RETURNING group_id, user_id;
+    // `;
+    // const { rows } = await db.query(queryText, [id, user_id]);
+
+    console.log(`User ${user_id} removed from group ${id}`);
+
+    res.redirect(`/admin/groups/${id}/members?message=Member removed successfully`);
+  } catch (error) {
+    console.error(`Error removing member from group ${id}:`, error);
+    res.redirect(`/admin/groups/${id}/members?error=Failed to remove member`);
+  }
+});
+
+// POST /admin/groups/bulk-add-members - Bulk add selected users to a group
+router.post('/groups/bulk-add-members', async (req, res) => {
+  try {
+    const { group_id } = req.body;
+    let { selected_user_ids } = req.body;
+
+    if (!group_id) {
+      return res.redirect('/admin/participants?error=Missing group selection');
+    }
+
+    if (!selected_user_ids) {
+      return res.redirect('/admin/participants?error=No participants selected');
+    }
+
+    if (!Array.isArray(selected_user_ids)) {
+      selected_user_ids = [selected_user_ids];
+    }
+
+    const targetGroupId = Number(group_id);
+    const targetSet = ensureGroupSet(targetGroupId);
+
+    // Enforce single-group rule by reassigning: remove from old group if present, then add to target
+    for (const userIdRaw of selected_user_ids) {
+      const userId = Number(userIdRaw);
+      const existingGroupId = USER_TO_GROUP.get(userId);
+      if (existingGroupId && existingGroupId !== targetGroupId) {
+        const oldSet = ensureGroupSet(existingGroupId);
+        oldSet.delete(userId);
+      }
+      // Assign to target
+      targetSet.add(userId);
+      USER_TO_GROUP.set(userId, targetGroupId);
+    }
+
+    updateGroupMemberCounts();
+
+    return res.redirect('/admin/participants?message=Participants assigned to group');
+  } catch (error) {
+    console.error('Error bulk-adding members to group:', error);
+    return res.redirect('/admin/participants?error=Failed to assign participants');
+  }
+});
+
+module.exports = router;

@@ -18,13 +18,22 @@ try {
   process.exit(1);
 }
 
+const creds = { 
+  DB_USER: "postgres",
+  DB_HOST: "localhost",
+  DB_DATABASE: "newsnow",
+  DB_PASSWORD: "YarosLab",
+  DB_PORT: "5432",
+  SERVER_PORT: "3000"
+}
+
 // PostgreSQL Pool
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
+  user: creds.DB_USER,
+  host: creds.DB_HOST,
+  database: creds.DB_DATABASE,
+  password: creds.DB_PASSWORD,
+  port: parseInt(creds.DB_PORT || '5432'),
 });
 
 pool.on('connect', () => {
@@ -68,6 +77,7 @@ async function seedUsers() {
           }
         } catch (dbError) {
           console.error(`Error processing user ${firebaseUid}:`, dbError.message);
+          console.log(process.env.DB_PASSWORD)
         }
       }
       pageToken = listUsersResult.pageToken;

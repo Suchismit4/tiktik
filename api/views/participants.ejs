@@ -32,6 +32,9 @@
             <a href="/admin/participants" class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
                 <i class="material-icons mr-4">people</i> Participants
             </a>
+            <a href="/admin/groups" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                <i class="material-icons mr-4">groups</i> Groups
+            </a>
             <a href="/admin/content" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
                 <i class="material-icons mr-4">video_library</i> Content
             </a>
@@ -45,12 +48,27 @@
         <div class="card bg-white rounded-lg shadow-elevation-1 mb-8">
             <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
                 <div class="card-title text-xl font-medium text-gray-800">Participants</div>
+                <!-- <form action="/admin/groups/bulk-add-members" method="POST" class="flex items-center gap-3">
+                    <select name="group_id" class="form-control px-3 py-2 border border-gray-300 rounded-md bg-white" required>
+                        <option value="" disabled selected>Select group</option>
+                        <% if (groups && groups.length > 0) { %>
+                            <% groups.forEach(function(g) { %>
+                                <option value="<%= g.id %>"><%= g.name %> (<%= g.member_count || 0 %>)</option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                    <button type="submit" class="btn btn-primary px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors">Add Selected</button>
+                </form> -->
             </div>
             <div class="card-content p-0">
                 <div class="overflow-x-auto">
+                    <!-- <form action="/admin/groups/bulk-add-members" method="POST" id="bulk-assign-form"> -->
                     <table class="data-table w-full">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
+                                <!-- <th class="py-4 px-6">
+                                    <input type="checkbox" id="select-all" class="form-checkbox">
+                                </th> -->
                                 <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UID</th>
                                 <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                 <th class="py-4 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</th>
@@ -68,6 +86,9 @@
                             <% } else if (participants && participants.length > 0) { %>
                                 <% participants.forEach(function(participant) { %>
                                     <tr class="hover:bg-gray-50 transition-colors duration-150 border-b border-gray-200">
+                                        <td class="py-4 px-6">
+                                            <input type="checkbox" name="selected_user_ids" value="<%= participant.user_id_db %>" class="row-checkbox form-checkbox">
+                                        </td>
                                         <td class="py-4 px-6 whitespace-nowrap font-medium text-gray-800"><%= participant.uid %></td>
                                         <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= participant.email %></td>
                                         <td class="py-4 px-6 whitespace-nowrap text-gray-600"><%= participant.displayName %></td>
@@ -93,6 +114,7 @@
                             <% } %>
                         </tbody>
                     </table>
+                    </form>
                 </div>
             </div>
         </div>
@@ -107,6 +129,14 @@
         sidebar.classList.toggle('sidebar-hidden');
         mainContent.classList.toggle('main-content-full');
     });
+
+    // Select/Deselect all checkboxes
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+        });
+    }
 </script>
 
 </body>

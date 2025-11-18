@@ -17,5 +17,9 @@ router.post('/survey', async (req, res) => {
         VALUES ($1, $2, $3)
         RETURNING id
     `;
-    
+});
+
+router.post('/experiment', async (req, res) => {
+    const {} = req.body;
+    const query = '';
 });

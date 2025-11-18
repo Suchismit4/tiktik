@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %>
+    </title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            light: '#63a4ff',
+                            DEFAULT: '#1976d2',
+                            dark: '#004ba0',
+                        },
+                        secondary: {
+                            light: '#ff5983',
+                            DEFAULT: '#f50057',
+                            dark: '#bb002f',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Roboto', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'elevation-1': '0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12)',
+                        'elevation-2': '0 3px 1px -2px rgba(0,0,0,0.2), 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12)',
+                        'elevation-4': '0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12)',
+                        'elevation-8': '0 5px 5px -3px rgba(0,0,0,0.2), 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12)',
+                    }
+                },
+            },
+        }
+    </script>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Additional styles for Tailwind integration */
+        .material-ripple {
+            position: relative;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .material-ripple:after {
+            content: "";
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .4s, opacity 0.8s;
+        }
+
+        .material-ripple:active:after {
+            transform: scale(0, 0);
+            opacity: .3;
+            transition: 0s;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <div class="app-container">
+        <header class="top-navbar flex items-center px-4 bg-primary text-white">
+            <button id="menu-toggle"
+                class="btn btn-icon mr-4 material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                <i class="material-icons">menu</i>
+            </button>
+            <div class="top-navbar-title text-xl font-medium">Group Management Dashboard</div>
+            <div class="flex items-center gap-4 ml-auto">
+                <button id="create-group-btn"
+                    class="btn btn-primary flex items-center gap-2 py-2 px-4 rounded-md bg-white text-primary hover:bg-gray-100 transition-colors duration-200 shadow-elevation-1">
+                    <i class="material-icons text-sm">add</i>
+                    <span class="font-medium text-sm">Create Group</span>
+                </button>
+                <!-- Notifications? -->
+                <button
+                    class="btn btn-icon material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">notifications</i>
+                </button>
+                <!-- Modify this to check account settings. -->
+                <button
+                    class="btn btn-icon material-ripple hover:bg-primary-dark rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">account_circle</i>
+                </button>
+            </div>
+        </header>
+
+        <aside class="sidebar bg-white">
+            <nav class="sidebar-menu py-2">
+                <a href="/admin" 
+                    class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">dashboard</i>
+                    Dashboard
+                </a>
+                <a href="/admin/experiments"
+                    class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">science</i>
+                    Experiments
+                </a>
+                <a href="/admin/participants"
+                    class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">people</i>
+                    Participants
+                </a>
+                <a href="/admin/groups" 
+                    class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">groups</i>
+                    Groups
+                </a>
+                <a href="/admin/content"
+                    class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">video_library</i>
+                    Content
+                </a>
+                <a href="/admin/settings"
+                    class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                    <i class="material-icons mr-4">settings</i>
+                    Settings
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content bg-gray-50 py-10 px-6">
+            <!-- Success/Error Messages -->
+            <% if (typeof message !== 'undefined' && message) { %>
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6" role="alert">
+                    <span class="block sm:inline"><%= message %></span>
+                </div>
+            <% } %>
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+                    <span class="block sm:inline"><%= error %></span>
+                </div>
+            <% } %>
+
+            <!-- Group Statistics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
+                                <i class="material-icons text-blue-600 text-lg">groups</i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Groups</p>
+                            <p class="text-2xl font-semibold text-gray-900"><%= groups ? groups.length : 0 %></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+                                <i class="material-icons text-green-600 text-lg">check_circle</i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Active Groups</p>
+                            <p class="text-2xl font-semibold text-gray-900"><%= groups ? groups.filter(g => g.status === 'active').length : 0 %></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
+                                <i class="material-icons text-yellow-600 text-lg">people</i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Members</p>
+                            <p class="text-2xl font-semibold text-gray-900"><%= groups ? groups.reduce((sum, g) => sum + (g.member_count || 0), 0) : 0 %></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card bg-white rounded-lg shadow-elevation-1 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center">
+                                <i class="material-icons text-purple-600 text-lg">science</i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Groups in Experiments</p>
+                            <p class="text-2xl font-semibold text-gray-900"><%= groups ? groups.filter(g => g.experiment_count > 0).length : 0 %></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groups Management Table -->
+            <div class="card bg-white rounded-lg shadow-elevation-1">
+                <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
+                    <div class="card-title text-xl font-medium text-gray-800">Groups</div>
+                    <div class="flex items-center gap-3">
+                        <button
+                            class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+                            <i class="material-icons text-sm">filter_list</i>
+                            <span class="font-medium text-sm">Filter</span>
+                        </button>
+                        <button
+                            class="btn btn-text flex items-center gap-1 text-primary hover:bg-blue-50 px-3 py-2 rounded-md transition-colors duration-200">
+                            <i class="material-icons text-sm">sort</i>
+                            <span class="font-medium text-sm">Sort</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content p-0">
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Group Name</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Description</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Members</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Experiments</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Created</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (error) { %>
+                                    <tr>
+                                        <td colspan="7" class="py-4 px-6 text-center text-red-500"><%= error %></td>
+                                    </tr>
+                                <% } else if (groups && groups.length > 0) { %>
+                                    <% groups.forEach(function(group) { %>
+                                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                            <td class="py-3 px-4">
+                                                <div class="text-sm font-medium text-gray-900"><%= group.name %></div>
+                                                <div class="text-sm text-gray-500">ID: <%= group.id %></div>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <div class="text-sm text-gray-700"><%= group.description || 'No description' %></div>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    <%= group.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                                       group.status === 'inactive' ? 'bg-red-100 text-red-800' : 
+                                                       'bg-yellow-100 text-yellow-800' %>">
+                                                    <%= group.status %>
+                                                </span>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <div class="flex items-center">
+                                                    <i class="material-icons text-gray-400 text-sm mr-1">people</i>
+                                                    <span class="text-sm text-gray-700"><%= group.member_count || 0 %></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <div class="flex items-center">
+                                                    <i class="material-icons text-gray-400 text-sm mr-1">science</i>
+                                                    <span class="text-sm text-gray-700"><%= group.experiment_count || 0 %></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <span class="text-sm text-gray-700"><%= group.created_at ? new Date(group.created_at).toLocaleDateString() : 'N/A' %></span>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <div class="flex items-center gap-2">
+                                                    <button class="text-indigo-600 hover:text-indigo-800 font-medium text-sm px-2 py-1 rounded hover:bg-gray-50 transition-colors" 
+                                                            onclick="editGroup('<%= group.id %>')">Edit</button>
+                                                    <form action="/admin/groups/<%= group.id %>/delete" method="POST" 
+                                                          onsubmit="return confirm('Are you sure you want to delete this group?');" class="inline">
+                                                        <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm px-2 py-1 rounded hover:bg-gray-50 transition-colors">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-8">
+                                            <div class="flex flex-col items-center">
+                                                <i class="material-icons text-gray-400 text-4xl mb-2">groups</i>
+                                                <p class="text-gray-500 text-lg">No groups created yet</p>
+                                                <p class="text-gray-400 text-sm">Start by creating your first group</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <button id="mobile-add-btn"
+            class="btn-fab bg-secondary text-white flex items-center justify-center shadow-elevation-8 transition-all duration-300 hover:shadow-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2">
+            <i class="material-icons">add</i>
+        </button>
+    </div>
+
+    <!-- Create/Edit Group Modal -->
+    <div id="group-modal"
+        class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
+        <div class="modal bg-white rounded-lg shadow-elevation-8 max-w-lg w-full max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95 opacity-0"
+            id="modal-content">
+            <div class="modal-header py-4 px-6 flex items-center justify-between border-b border-gray-200">
+                <div class="modal-title text-xl font-medium text-gray-800" id="modal-title">Create New Group</div>
+                <button id="close-modal"
+                    class="btn btn-icon text-gray-500 hover:bg-gray-100 rounded-full p-2 transition-colors duration-200">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            <form id="group-form" action="/admin/groups/create" method="POST">
+                <div class="modal-content p-6 overflow-y-auto">
+                    <div class="form-group mb-5">
+                        <label for="groupName"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+                        <input type="text" id="groupName" name="name"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            required>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="groupDescription"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="groupDescription" name="description" rows="3"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            placeholder="Enter group description..."></textarea>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="groupStatus"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="groupStatus" name="status"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                            required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="groupType"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Group Type</label>
+                        <select id="groupType" name="type"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                            required>
+                            <option value="control">Control Group</option>
+                            <option value="treatment">Treatment Group</option>
+                            <option value="random">Random Assignment</option>
+                            <option value="demographic">Demographic Based</option>
+                            <option value="behavioral">Behavioral Based</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="maxMembers"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Maximum Members</label>
+                        <input type="number" id="maxMembers" name="max_members" min="1" max="1000"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            placeholder="Enter maximum number of members">
+                    </div>
+                    <div class="form-group mb-5">
+                        <label for="groupTags"
+                            class="form-label block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                        <input type="text" id="groupTags" name="tags"
+                            class="form-control block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            placeholder="Enter tags separated by commas">
+                        <p class="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
+                    </div>
+                </div>
+                <div class="modal-footer py-3 px-6 flex items-center justify-end gap-3 border-t border-gray-200">
+                    <button type="button" id="cancel-group"
+                        class="btn btn-text px-4 py-2 text-gray-700 hover:bg-gray-100 rounded transition-colors duration-200">Cancel</button>
+                    <button type="submit"
+                        class="btn btn-primary px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded shadow transition-colors duration-200">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements for general modal and sidebar
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const createGroupBtn = document.getElementById('create-group-btn');
+        const mobileAddBtn = document.getElementById('mobile-add-btn');
+        const groupModal = document.getElementById('group-modal');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalBtn = document.getElementById('close-modal');
+        const cancelGroupBtn = document.getElementById('cancel-group');
+        const groupForm = document.getElementById('group-form');
+        const modalTitle = document.getElementById('modal-title');
+
+        // Toggle sidebar visibility
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-hidden');
+            mainContent.classList.toggle('main-content-full');
+        });
+
+        // Show modal with animation
+        function showModal() {
+            groupModal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        // Hide modal with animation
+        function hideModal() {
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                groupModal.classList.add('hidden');
+                resetForm();
+            }, 300);
+        }
+
+        // Reset form to create mode
+        function resetForm() {
+            groupForm.action = '/admin/groups/create';
+            groupForm.method = 'POST';
+            modalTitle.textContent = 'Create New Group';
+            groupForm.querySelector('button[type="submit"]').textContent = 'Create Group';
+            groupForm.reset();
+        }
+
+        // Edit group function
+        function editGroup(groupId) {
+            // TODO: Fetch group data and populate form
+            // For now, just show the modal in edit mode
+            groupForm.action = `/admin/groups/${groupId}/edit`;
+            groupForm.method = 'POST';
+            modalTitle.textContent = 'Edit Group';
+            groupForm.querySelector('button[type="submit"]').textContent = 'Update Group';
+            
+            // TODO: Populate form fields with existing group data
+            showModal();
+        }
+
+        // Event listeners for modal
+        createGroupBtn.addEventListener('click', showModal);
+        mobileAddBtn.addEventListener('click', showModal);
+        closeModalBtn.addEventListener('click', hideModal);
+        cancelGroupBtn.addEventListener('click', hideModal);
+        groupModal.addEventListener('click', (e) => {
+            if (e.target === groupModal) hideModal();
+        });
+
+        // Form submission handling
+        groupForm.addEventListener('submit', function(e) {
+            // Basic validation
+            const groupName = document.getElementById('groupName').value.trim();
+            if (!groupName) {
+                e.preventDefault();
+                alert('Group name is required');
+                return;
+            }
+        });
+    </script>
+</body>
+
+</html>

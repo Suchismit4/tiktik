@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-// const pool = require('../db'); // DB disabled
+const db = require('../db');
 
 // Sample video data matching the app's constants
 const VIDEOS = [
@@ -99,86 +99,266 @@ const VIDEOS = [
 
 // Get all posts - Real video data (only enabled videos)
 router.get('/', async (req, res) => {
-  console.log('GET /api/posts - Returning enabled video data');
-  const enabledVideos = VIDEOS
-    .filter(video => video.enabled !== false)
-    .map(video => {
-      // Remove the enabled field before sending to client
-      const { enabled, ...clientVideo } = video;
-      return clientVideo;
-    });
-  res.status(200).json(enabledVideos);
+  try {
+    console.log('GET /api/posts - Fetching from PostgreSQL');
+    
+    const query = `
+      SELECT 
+        c.content_id as id,
+        c.video_url as uri,
+        c.description_caption as caption,
+        c.custom_metadata->'source'->>'name' as source_name,
+        c.custom_metadata->'source'->>'imageuri' as source_imageuri,
+        COALESCE(c.custom_metadata->>'likes', '0')::integer as likes,
+        COALESCE(c.custom_metadata->'facts', '[]'::json) as facts,
+        COALESCE(c.custom_metadata->'tags', '[]'::json) as tags,
+        COALESCE(c.custom_metadata->>'enabled', 'true')::boolean as enabled
+      FROM content c
+      WHERE COALESCE(c.custom_metadata->>'enabled', 'true')::boolean = true
+      ORDER BY c.content_id
+    `;
+    
+    const result = await db.query(query);
+    
+    const posts = result.rows.map(row => ({
+      id: row.id,
+      uri: row.uri,
+      caption: row.caption,
+      source: {
+        name: row.source_name || 'Unknown Source',
+        imageuri: row.source_imageuri || 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: row.likes || 0,
+      facts: row.facts || [],
+      tags: row.tags || []
+    }));
+    
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get post by ID - Real video data (only if enabled)
 router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-  console.log(`GET /api/posts/${id} - Returning real video data`);
-  
-  const post = VIDEOS.find(video => video.id === parseInt(id));
-  
-  if (post && post.enabled !== false) {
-    // Remove the enabled field before sending to client
-    const { enabled, ...clientPost } = post;
-    res.status(200).json(clientPost);
-  } else {
-    res.status(404).json({ error: 'Post not found' });
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/posts/${id} - Fetching from PostgreSQL`);
+    
+    const query = `
+      SELECT 
+        c.content_id as id,
+        c.video_url as uri,
+        c.description_caption as caption,
+        c.custom_metadata->'source'->>'name' as source_name,
+        c.custom_metadata->'source'->>'imageuri' as source_imageuri,
+        COALESCE(c.custom_metadata->>'likes', '0')::integer as likes,
+        COALESCE(c.custom_metadata->'facts', '[]'::json) as facts,
+        COALESCE(c.custom_metadata->'tags', '[]'::json) as tags,
+        COALESCE(c.custom_metadata->>'enabled', 'true')::boolean as enabled
+      FROM content c
+      WHERE c.content_id = $1 AND COALESCE(c.custom_metadata->>'enabled', 'true')::boolean = true
+    `;
+    
+    const result = await db.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    const row = result.rows[0];
+    const post = {
+      id: row.id,
+      uri: row.uri,
+      caption: row.caption,
+      source: {
+        name: row.source_name || 'Unknown Source',
+        imageuri: row.source_imageuri || 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: row.likes || 0,
+      facts: row.facts || [],
+      tags: row.tags || []
+    };
+    
+    res.status(200).json(post);
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Create a new post - Placeholder
+// Create a new post
 router.post('/', async (req, res) => {
-  const { uri, facts, tags, caption, source_name, imageuri } = req.body;
-  console.log('POST /api/posts (DB Disabled)', req.body);
-  // Placeholder response
-  res.status(201).json({
-    id: Date.now(), // Fake ID
-    uri,
-    facts,
-    tags,
-    caption,
-    source_id: Date.now() + 1, // Fake source ID
-    name: source_name,
-    imageuri
-  });
+  try {
+    const { uri, facts, tags, caption, source_name, imageuri } = req.body;
+    console.log('POST /api/posts - Creating new post in PostgreSQL', req.body);
+    
+    // Prepare custom metadata
+    const customMetadata = {
+      source: {
+        name: source_name || 'Unknown Source',
+        imageuri: imageuri || 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: 0,
+      facts: facts || [],
+      tags: tags || [],
+      enabled: true
+    };
+    
+    const query = `
+      INSERT INTO content (video_url, description_caption, custom_metadata)
+      VALUES ($1, $2, $3)
+      RETURNING content_id, video_url, description_caption, custom_metadata
+    `;
+    
+    const result = await db.query(query, [uri, caption, JSON.stringify(customMetadata)]);
+    const newPost = result.rows[0];
+    
+    res.status(201).json({
+      id: newPost.content_id,
+      uri: newPost.video_url,
+      facts: customMetadata.facts,
+      tags: customMetadata.tags,
+      caption: newPost.description_caption,
+      source: customMetadata.source
+    });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 
-// Update a post - Placeholder
+// Update a post
 router.patch('/:id', async (req, res) => {
-  const { id } = req.params;
-  console.log(`PATCH /api/posts/${id} (DB Disabled)`, req.body);
-  // Placeholder response
-  res.json({ id: parseInt(id), ...req.body });
+  try {
+    const { id } = req.params;
+    const { uri, facts, tags, caption, source_name, imageuri, likes } = req.body;
+    console.log(`PATCH /api/posts/${id} - Updating post in PostgreSQL`, req.body);
+    
+    // First, get the current post to merge metadata
+    const getQuery = 'SELECT custom_metadata FROM content WHERE content_id = $1';
+    const getResult = await db.query(getQuery, [id]);
+    
+    if (getResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    const currentMetadata = getResult.rows[0].custom_metadata || {};
+    
+    // Update metadata with new values
+    const updatedMetadata = {
+      ...currentMetadata,
+      source: {
+        name: source_name || currentMetadata.source?.name || 'Unknown Source',
+        imageuri: imageuri || currentMetadata.source?.imageuri || 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: likes !== undefined ? likes : currentMetadata.likes || 0,
+      facts: facts || currentMetadata.facts || [],
+      tags: tags || currentMetadata.tags || [],
+      enabled: currentMetadata.enabled !== undefined ? currentMetadata.enabled : true
+    };
+    
+    const updateQuery = `
+      UPDATE content 
+      SET 
+        video_url = COALESCE($2, video_url),
+        description_caption = COALESCE($3, description_caption),
+        custom_metadata = $4
+      WHERE content_id = $1
+      RETURNING content_id, video_url, description_caption, custom_metadata
+    `;
+    
+    const result = await db.query(updateQuery, [
+      id, 
+      uri, 
+      caption, 
+      JSON.stringify(updatedMetadata)
+    ]);
+    
+    const updatedPost = result.rows[0];
+    
+    res.json({
+      id: updatedPost.content_id,
+      uri: updatedPost.video_url,
+      caption: updatedPost.description_caption,
+      source: updatedMetadata.source,
+      likes: updatedMetadata.likes,
+      facts: updatedMetadata.facts,
+      tags: updatedMetadata.tags
+    });
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Delete a post - Placeholder
+// Delete a post
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  console.log(`DELETE /api/posts/${id} (DB Disabled)`);
-  // Placeholder response
-  res.status(200).json({ message: `Post ${id} placeholder deleted successfully` });
+  try {
+    const { id } = req.params;
+    console.log(`DELETE /api/posts/${id} - Deleting post from PostgreSQL`);
+    
+    const query = 'DELETE FROM content WHERE content_id = $1 RETURNING content_id';
+    const result = await db.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    res.status(200).json({ 
+      message: `Post ${id} deleted successfully`,
+      deleted_id: result.rows[0].content_id
+    });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Toggle video enabled/disabled status
 router.patch('/:id/toggle', async (req, res) => {
-  const { id } = req.params;
-  console.log(`PATCH /api/posts/${id}/toggle - Toggling video status`);
-  
-  const videoIndex = VIDEOS.findIndex(video => video.id === parseInt(id));
-  
-  if (videoIndex === -1) {
-    return res.status(404).json({ error: 'Video not found' });
+  try {
+    const { id } = req.params;
+    console.log(`PATCH /api/posts/${id}/toggle - Toggling video status in PostgreSQL`);
+    
+    // First, get the current post and its metadata
+    const getQuery = 'SELECT custom_metadata FROM content WHERE content_id = $1';
+    const getResult = await db.query(getQuery, [id]);
+    
+    if (getResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    
+    const currentMetadata = getResult.rows[0].custom_metadata || {};
+    const currentEnabled = currentMetadata.enabled !== undefined ? currentMetadata.enabled : true;
+    const newEnabled = !currentEnabled;
+    
+    // Update the enabled status in metadata
+    const updatedMetadata = {
+      ...currentMetadata,
+      enabled: newEnabled
+    };
+    
+    const updateQuery = `
+      UPDATE content 
+      SET custom_metadata = $2
+      WHERE content_id = $1
+      RETURNING content_id
+    `;
+    
+    const result = await db.query(updateQuery, [id, JSON.stringify(updatedMetadata)]);
+    
+    res.status(200).json({
+      id: parseInt(id),
+      enabled: newEnabled,
+      message: `Video ${id} ${newEnabled ? 'enabled' : 'disabled'} successfully`
+    });
+  } catch (error) {
+    console.error('Error toggling video status:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  // Toggle the enabled status
-  VIDEOS[videoIndex].enabled = !VIDEOS[videoIndex].enabled;
-  
-  res.status(200).json({
-    id: parseInt(id),
-    enabled: VIDEOS[videoIndex].enabled,
-    message: `Video ${id} ${VIDEOS[videoIndex].enabled ? 'enabled' : 'disabled'} successfully`
-  });
 });
 
 module.exports = router;

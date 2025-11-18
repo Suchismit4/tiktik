@@ -21,12 +21,12 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new user - Placeholder
-router.post('/', async (req, res) => {
-  const { name, username } = req.body;
-  console.log('POST /api/users (DB Disabled)', req.body);
-  // Placeholder response
-  res.status(201).json({ id: Date.now(), name, username });
-});
+// router.post('/', async (req, res) => {
+//   const { name, username } = req.body;
+//   console.log('POST /api/users (DB Disabled)', req.body);
+//   // Placeholder response
+//   res.status(201).json({ id: Date.now(), name, username });
+// });
 
 // Update a user - Placeholder
 router.put('/:id', async (req, res) => {
