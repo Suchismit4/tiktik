@@ -108,3 +108,13 @@
 -- COMMENT ON COLUMN interaction_data.assignment_id IS 'Links to the participant''s specific assignment in an experiment. Cascades delete.';
 -- COMMENT ON COLUMN interaction_data.content_id IS 'Content item related to the interaction. Set to NULL if content is deleted.';
 -- COMMENT ON COLUMN interaction_data.payload IS 'Flexible JSONB field for detailed, type-specific interaction data.';
+
+-- -- -- ========== Table: groups ==========
+-- -- Stores information about each group and the types of content they view when chosen for an experiment.
+-- CREATE TABLE groups (
+--      group_id SERIAL PRIMARY KEY,
+--      description TEXT,
+--      max_participants INTEGER,
+--      tag_ids INTEGER[],
+--      status INTEGER NOT NULL
+-- );
