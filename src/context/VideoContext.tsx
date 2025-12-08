@@ -53,11 +53,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
   // State for video data and analytics
   // CHANGE "[]" WITH "VIDEOS" WHEN NOT USING API
   // AND "VIDEOS" with "[]" WHEN USING API
-  const [videos, setVideos] = useState<Post[]>([]);
+  const [videos, setVideos] = useState<Post[]>(VIDEOS);
   const [timeSpent, setTimeSpent] = useState<Record<string, number>>({});
   const [maxScrollDepth, setMaxScrollDepth] = useState<number>(0);
   const [videoCount, setVideoCount] = useState<number>(0);
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse[]>([]);
+  
+  // Feature flag to control whether to fetch from API or use local constants
+  const USE_API = false;
   
   // Ref to track the last viewed content
   const lastViewedRef = useRef<{ startTime: number | null; contentId: string | null }>({
@@ -66,6 +69,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children }) => {
   });
 
   useEffect(() => {
+    if (!USE_API) {
+      console.log('Using local VIDEO constants; API fetch disabled.');
+      setVideos(VIDEOS);
+      return;
+    }
+
     const fetchVideos = async () => {
       try {
         console.log('Fetching videos from API...');
