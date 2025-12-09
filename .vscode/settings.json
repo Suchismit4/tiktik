@@ -9,6 +9,17 @@
             "name": "newsnow",
             "database": "newsnow",
             "username": "postgres"
+        },
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5433,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "name": "NewsNow",
+            "username": "postgres",
+            "database": "NewsNow"
         }
     ]
 }

@@ -110,3 +110,29 @@ COMMENT ON COLUMN interaction_data.content_id IS 'Content item related to the in
 COMMENT ON COLUMN interaction_data.payload IS 'Flexible JSONB field for detailed, type-specific interaction data.';
 
 INSERT INTO admins (admin_id, username) VALUES (1, 'default_admin') ON CONFLICT (admin_id) DO NOTHING;
+
+-- Remove unused group tables if they exist
+DROP TABLE IF EXISTS experiment_groups CASCADE;
+DROP TABLE IF EXISTS group_members CASCADE;
+DROP TABLE IF EXISTS groups CASCADE;
+
+-- Tags (re-usable for admin-created labels)
+CREATE TABLE IF NOT EXISTS tags (
+  tag_id SERIAL PRIMARY KEY,
+  tag_name TEXT NOT NULL,
+  tag_category TEXT NOT NULL DEFAULT 'general',
+  description TEXT,
+  created_by_admin_id INTEGER REFERENCES admins(admin_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_tag_in_category UNIQUE (tag_name, tag_category)
+);
+
+COMMENT ON TABLE tags IS 'Definitions of tags (keywords, labels) applied to content.';
+COMMENT ON COLUMN tags.tag_category IS 'Grouping for tags, e.g., content_theme, visual_element, research_label.';
+CREATE INDEX IF NOT EXISTS idx_tags_category ON tags(tag_category);
+
+-- Make content tag array easier to work with
+ALTER TABLE content ALTER COLUMN tag_ids SET DEFAULT ARRAY[]::INTEGER[];
+
+ALTER TABLE experiments ADD COLUMN IF NOT EXISTS ttl_seconds INTEGER;
+-- start_date/end_date already TIMESTAMPTZ; ensure they store time as needed.

@@ -50,103 +50,141 @@ const upload = multer({
   }
 });
 
-// ---- Group utilities and mock storage (until DB table exists) ----
-// Normalize a comma-separated tags string into a canonical, order-insensitive string
-function canonicalizeTags(tagsInput) {
-  if (!tagsInput) return '';
-  const tagsArray = Array.isArray(tagsInput)
-    ? tagsInput
-    : String(tagsInput).split(',');
-  const uniqueSorted = [...new Set(tagsArray.map(t => t.trim().toLowerCase()).filter(Boolean))].sort();
-  return uniqueSorted.join(',');
+// Helpers for tag management
+async function fetchTagsWithUsage() {
+  const query = `
+    SELECT 
+      t.tag_id,
+      t.tag_name,
+      t.tag_category,
+      t.description,
+      t.created_at,
+      COUNT(c.content_id) FILTER (WHERE t.tag_id = ANY(c.tag_ids)) AS usage_count
+    FROM tags t
+    LEFT JOIN content c ON t.tag_id = ANY(c.tag_ids)
+    GROUP BY t.tag_id
+    ORDER BY t.created_at DESC
+  `;
+  const { rows } = await db.query(query);
+  return rows;
 }
 
-// In-memory mock groups used for rendering when DB is not implemented
-const MOCK_GROUPS = [
-  {
-    id: 1,
-    name: 'Control Group A',
-    description: 'Baseline control group for A/B testing',
-    status: 'active',
-    type: 'control',
-    member_count: 25,
-    experiment_count: 3,
-    created_at: '2024-01-15T10:30:00Z',
-    tags: ['control', 'baseline', 'ab-test']
-  },
-  {
-    id: 2,
-    name: 'Treatment Group B',
-    description: 'Experimental group with new features',
-    status: 'active',
-    type: 'treatment',
-    member_count: 23,
-    experiment_count: 3,
-    created_at: '2024-01-15T10:35:00Z',
-    tags: ['treatment', 'experimental', 'ab-test']
-  },
-  {
-    id: 3,
-    name: 'Demographic Group - Young Adults',
-    description: 'Participants aged 18-29 for demographic studies',
-    status: 'active',
-    type: 'demographic',
-    member_count: 18,
-    experiment_count: 1,
-    created_at: '2024-01-20T14:20:00Z',
-    tags: ['demographic', 'young-adults', 'age-based']
-  },
-  {
-    id: 4,
-    name: 'Behavioral Group - High Engagement',
-    description: 'Users with high engagement patterns',
-    status: 'inactive',
-    type: 'behavioral',
-    member_count: 12,
-    experiment_count: 0,
-    created_at: '2024-01-25T09:15:00Z',
-    tags: ['behavioral', 'high-engagement', 'power-users']
-  }
-];
-
-function isDuplicateTagSetCanonical(canonicalTags, excludeId) {
-  // Try DB first if available; fallback to MOCK_GROUPS
-  // Note: groups table schema unknown; we assume a text column 'tags' storing comma-separated tags or text[]
-  // We'll handle DB in route handlers to keep async context; this function checks MOCK_GROUPS only
-  return MOCK_GROUPS.some(g => {
-    if (excludeId && Number(g.id) === Number(excludeId)) return false;
-    const otherCanonical = canonicalizeTags(g.tags);
-    return otherCanonical === canonicalTags;
-  });
+async function fetchContentForTag(tagId) {
+  const query = `
+    SELECT 
+      content_id,
+      video_url,
+      description_caption,
+      thumbnail_url,
+      duration_seconds,
+      custom_metadata,
+      tag_ids,
+      uploaded_at
+    FROM content
+    WHERE $1 = ANY(tag_ids)
+    ORDER BY content_id DESC
+  `;
+  const { rows } = await db.query(query, [tagId]);
+  return rows.map(row => ({
+    id: row.content_id,
+    video_url: row.video_url,
+    caption: row.description_caption,
+    thumbnail: row.thumbnail_url || row.custom_metadata?.thumbnail_url || null,
+    duration_seconds: row.duration_seconds,
+    uploaded_at: row.uploaded_at,
+    tags: row.tag_ids || []
+  }));
 }
 
-// In-memory membership tracking until DB is available
-// Maps groupId -> Set<userId>
-const GROUP_MEMBERS = new Map();
-// Maps userId -> groupId
-const USER_TO_GROUP = new Map();
+// -------------------------
+// Experiment helpers
+// -------------------------
+async function expireExperimentsIfNeeded() {
+  try {
+    // Auto-activate planning experiments that have reached start time (or no start_date).
+    await db.query(`
+      UPDATE experiments
+      SET status = 'active'
+      WHERE status = 'planning'
+        AND NOW() >= COALESCE(start_date, created_at)
+    `);
 
-function ensureGroupSet(groupId) {
-  const gid = Number(groupId);
-  if (!GROUP_MEMBERS.has(gid)) GROUP_MEMBERS.set(gid, new Set());
-  return GROUP_MEMBERS.get(gid);
-}
-
-function updateGroupMemberCounts() {
-  for (const g of MOCK_GROUPS) {
-    const set = GROUP_MEMBERS.get(Number(g.id));
-    g.member_count = set ? set.size : g.member_count || 0;
+    // Expire active experiments by TTL (measured from start_date if present, else created_at) or end_date.
+    await db.query(`
+      UPDATE experiments
+      SET status = 'completed'
+      WHERE status = 'active'
+        AND (
+          (ttl_seconds IS NOT NULL AND ttl_seconds > 0 AND NOW() >= COALESCE(start_date, created_at) + ttl_seconds * INTERVAL '1 second')
+          OR (end_date IS NOT NULL AND end_date <= NOW())
+        )
+    `);
+  } catch (e) {
+    console.warn('expireExperimentsIfNeeded skipped:', e.message);
   }
 }
 
+function computeExperimentView(row) {
+  const createdAt = row.created_at ? new Date(row.created_at) : null;
+  const startDate = row.start_date ? new Date(row.start_date) : null;
+  const endDate = row.end_date ? new Date(row.end_date) : null;
+  const now = new Date();
+
+  // TTL anchor: start_date if present, else created_at
+  const anchor = startDate || createdAt;
+  let ttlRemaining = null;
+  const hasTtl = row.ttl_seconds !== null && row.ttl_seconds !== undefined;
+  if (anchor && hasTtl) {
+    if (now < anchor) {
+      // Before start: show full TTL
+      ttlRemaining = row.ttl_seconds;
+    } else {
+      const elapsedSeconds = (now.getTime() - anchor.getTime()) / 1000;
+      ttlRemaining = Math.max(0, row.ttl_seconds - elapsedSeconds);
+    }
+  }
+
+  let status = row.status;
+
+  // Auto-activate in view if planning and start time passed
+  if (status === 'planning' && anchor && now >= anchor) {
+    status = 'active';
+  }
+
+  // If status is completed but nothing has actually expired yet, keep it active/planning.
+  if (status === 'completed') {
+    const nothingToExpire =
+      (row.ttl_seconds === null || row.ttl_seconds === undefined) &&
+      !endDate;
+    const notStartedYet = anchor && now < anchor;
+    if (nothingToExpire) {
+      status = notStartedYet ? 'planning' : 'active';
+    } else if (notStartedYet) {
+      status = 'planning';
+    }
+  }
+
+  const isExpiredByTtl = ttlRemaining !== null && ttlRemaining <= 0 && anchor && now >= anchor;
+  const isExpiredByEndDate = endDate && now > endDate;
+  if (status === 'active' && (isExpiredByTtl || isExpiredByEndDate)) {
+    status = 'completed';
+  }
+
+  return { ...row, ttl_remaining: ttlRemaining, status };
+}
+
+// -------------------------
 // GET /admin - Render the admin panel
 router.get('/', async (req, res) => {
     try {
+        await expireExperimentsIfNeeded();
         const { rows } = await db.query(
             `SELECT exp.experiment_id, exp.name, exp.type, exp.status, 
                     TO_CHAR(exp.start_date, 'YYYY-MM-DD') as start_date, 
                     TO_CHAR(exp.end_date, 'YYYY-MM-DD') as end_date, 
-                    adm.username as created_by_admin_username
+                    adm.username as created_by_admin_username,
+                    exp.created_at,
+                    exp.ttl_seconds
              FROM experiments exp
              LEFT JOIN admins adm ON exp.created_by_admin_id = adm.admin_id
              ORDER BY exp.created_at DESC LIMIT 10` // Fetch recent 10 experiments
@@ -154,7 +192,7 @@ router.get('/', async (req, res) => {
         
         res.render('admin', { 
             title: 'Admin Panel',
-            experiments: rows, // rows will be an array of experiment objects
+            experiments: rows.map(computeExperimentView), // rows will be an array of experiment objects
             error: null
         });
     } catch (error) {
@@ -177,7 +215,9 @@ router.post('/schedule', async (req, res) => {
         surveyOptions, // This is 'Survey Options' from the form
         behaviorNotes, // This is 'Behavior Notes' from the form
         startDate,
+        startTime,
         endDate,
+        endTime,
         questions, // This will be an array of question objects
         variantAName, // From A/B Test conditional section
         variantBName  // From A/B Test conditional section
@@ -220,15 +260,26 @@ router.post('/schedule', async (req, res) => {
 
     try {
         const queryText = `
-            INSERT INTO experiments 
-            (name, type, description, status, config_details, start_date, end_date, created_by_admin_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING experiment_id;
+        INSERT INTO experiments 
+        (name, type, description, status, config_details, start_date, end_date, ttl_seconds, created_by_admin_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING experiment_id;
         `;
         
-        // Handle potentially empty date strings by converting to null
-        const SDate = startDate === '' ? null : startDate;
-        const EDate = endDate === '' ? null : endDate;
+        // Build start/end timestamps (date + optional time)
+        const startDateTime = (startDate || '').trim() ? `${startDate.trim()}${startTime ? ' ' + startTime.trim() : ''}` : null;
+        const endDateTime = (endDate || '').trim() ? `${endDate.trim()}${endTime ? ' ' + endTime.trim() : ''}` : null;
+        // Validate date ordering to avoid check constraint failures
+        if (startDateTime && endDateTime) {
+            const sd = new Date(startDateTime);
+            const ed = new Date(endDateTime);
+            if (ed < sd) {
+                return res.redirect('/admin?error=End date/time must be after start date/time');
+            }
+        }
+        const ttlValue = (startDateTime && endDateTime)
+          ? Math.max(0, Math.floor((new Date(endDateTime).getTime() - new Date(startDateTime).getTime()) / 1000))
+          : null;
         
         const values = [
             experimentName,
@@ -236,8 +287,9 @@ router.post('/schedule', async (req, res) => {
             description,
             status,
             config_details,
-            SDate, 
-            EDate,
+            startDateTime, 
+            endDateTime,
+            ttlValue,
             created_by_admin_id
         ];
 
@@ -245,6 +297,17 @@ router.post('/schedule', async (req, res) => {
         const newExperimentId = rows[0].experiment_id;
 
         console.log(`New experiment scheduled with ID: ${newExperimentId}`);
+        console.log("Experiment details:", {
+            name: experimentName,
+            type: experimentType,
+            description: description,
+            status: status,
+            config_details: config_details,
+            start_date: startDateTime,
+            end_date: endDateTime,
+            ttl_seconds: ttlValue,
+            created_by_admin_id: created_by_admin_id
+        });
         res.redirect('/admin?message=ExperimentScheduled'); 
 
     } catch (error) {
@@ -278,12 +341,15 @@ Alex Johnson,78%,No`;
 router.get('/results/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    await expireExperimentsIfNeeded();
     // Fetch experiment details
     const expQuery = `
       SELECT exp.experiment_id, exp.name, exp.type, exp.status, 
              TO_CHAR(exp.start_date, 'YYYY-MM-DD HH24:MI:SS') as start_date, 
              TO_CHAR(exp.end_date, 'YYYY-MM-DD HH24:MI:SS') as end_date, 
              TO_CHAR(exp.created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+             exp.created_at as created_at_raw,
+             exp.ttl_seconds,
              adm.username as created_by_admin_username,
              exp.description, exp.config_details
       FROM experiments exp
@@ -295,7 +361,7 @@ router.get('/results/:id', async (req, res) => {
     if (experimentResult.rows.length === 0) {
       return res.status(404).render('error', { title: 'Not Found', message: 'Experiment not found.'});
     }
-    const experiment = experimentResult.rows[0];
+    const experiment = computeExperimentView(experimentResult.rows[0]);
 
     // Fetch participants assigned to this experiment
     const participantsQuery = `
@@ -327,19 +393,20 @@ router.get('/results/:id', async (req, res) => {
 // View all experiments
 router.get('/experiments', async (req, res) => {
   try {
+    await expireExperimentsIfNeeded();
     const { rows } = await db.query(
       `SELECT exp.experiment_id, exp.name, exp.type, exp.status, 
               TO_CHAR(exp.start_date, 'YYYY-MM-DD') as start_date, 
               TO_CHAR(exp.end_date, 'YYYY-MM-DD') as end_date, 
               adm.username as created_by_admin_username,
-              exp.description, exp.config_details
+              exp.description, exp.config_details, exp.created_at, exp.ttl_seconds
        FROM experiments exp
        LEFT JOIN admins adm ON exp.created_by_admin_id = adm.admin_id
        ORDER BY exp.status, exp.created_at DESC`
     );
     res.render('experiments', {
       title: 'All Experiments',
-      experiments: rows,
+      experiments: rows.map(computeExperimentView),
       error: null
     });
   } catch (error) {
@@ -378,12 +445,9 @@ router.get('/participants', async (req, res) => {
       disabled: false // Placeholder, Firebase disabled status not in app_users
     }));
 
-    // Expose groups to the view for assignment dropdown
-    updateGroupMemberCounts();
     res.render('participants', { 
       title: 'Manage Participants', 
       participants: participants,
-      groups: MOCK_GROUPS,
       message: req.query.message,
       error: null 
     });
@@ -524,25 +588,51 @@ router.post('/experiments/:id/delete', async (req, res) => {
   }
 });
 
-// GET /admin/content - View content management page
+// GET /admin/content - View content management page (DB-backed, with tags)
 router.get('/content', async (req, res) => {
   try {
-    // For now, we'll use the same video data from posts.js
-    // In future, this would query the database content table
-    const postsModule = require('./posts');
-    const VIDEOS = postsModule.VIDEOS || []; // Import the video data
-    
-    // Calculate total unique tags
-    const allTags = VIDEOS.flatMap(video => video.tags || []);
+    const query = `
+      SELECT 
+        c.content_id,
+        c.video_url,
+        c.description_caption,
+        c.thumbnail_url,
+        c.duration_seconds,
+        c.tag_ids,
+        c.uploaded_at,
+        c.custom_metadata,
+        COALESCE(array_agg(t.tag_name) FILTER (WHERE t.tag_id IS NOT NULL), ARRAY[]::TEXT[]) AS tag_names
+      FROM content c
+      LEFT JOIN LATERAL unnest(COALESCE(c.tag_ids, ARRAY[]::INTEGER[])) AS ut(tag_id) ON true
+      LEFT JOIN tags t ON t.tag_id = ut.tag_id
+      GROUP BY c.content_id, c.video_url, c.description_caption, c.thumbnail_url, c.duration_seconds, c.tag_ids, c.uploaded_at, c.custom_metadata
+      ORDER BY c.content_id DESC
+    `;
+
+    const { rows } = await db.query(query);
+
+    const videos = rows.map(row => {
+      const meta = row.custom_metadata || {};
+      return {
+        id: row.content_id,
+        uri: row.video_url,
+        caption: row.description_caption,
+        thumbnail_url: row.thumbnail_url || meta.thumbnail_url || null,
+        duration_seconds: row.duration_seconds,
+        uploaded_at: row.uploaded_at,
+        enabled: meta.enabled !== undefined ? meta.enabled : true,
+        tags: row.tag_names || [],
+        source: meta.source || { name: 'Unknown Source', imageuri: 'https://i.imgur.com/P8OOZMm.png' },
+        metadata: meta.metadata || {}
+      };
+    });
+
+    const allTags = videos.flatMap(video => video.tags || []);
     const uniqueTags = [...new Set(allTags)];
-    
+
     res.render('content', {
       title: 'Content Management',
-      videos: VIDEOS.map(video => ({
-        ...video,
-        uploaded_at: new Date().toISOString(), // Mock upload date
-        status: 'active' // Mock status
-      })),
+      videos,
       totalTags: uniqueTags.length,
       message: req.query.message,
       error: req.query.error
@@ -558,7 +648,7 @@ router.get('/content', async (req, res) => {
   }
 });
 
-// POST /admin/content/upload - Handle content upload with enhanced metadata
+// POST /admin/content/upload - Handle content upload with enhanced metadata and tag linkage
 router.post('/content/upload', upload.fields([
   { name: 'video_file', maxCount: 1 },
   { name: 'thumbnail_file', maxCount: 1 }
@@ -614,24 +704,40 @@ router.post('/content/upload', upload.fields([
       return res.redirect('/admin/content?error=Either video URL or video file is required');
     }
 
-    // Parse tags and themes
-    const tagArray = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    // Parse tag names from input and fetch existing tag_ids; ignore non-existent tags
+    const rawTagNames = (tags || '')
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+
+    const normalizedTagNames = rawTagNames.map(t => t.replace(/^#/, '').toLowerCase());
+    const lookupNames = Array.from(new Set([...normalizedTagNames, ...rawTagNames.map(t => t.toLowerCase())]));
+
+    let matchedTagIds = [];
+    if (lookupNames.length > 0) {
+      const { rows } = await db.query(
+        `SELECT tag_id FROM tags WHERE lower(tag_name) = ANY($1::text[])`,
+        [lookupNames]
+      );
+      matchedTagIds = rows.map(r => r.tag_id);
+    }
+
     const themeArray = content_themes ? content_themes.split(',').map(theme => theme.trim()).filter(theme => theme) : [];
     const audioCharArray = audio_characteristics ? audio_characteristics.split(',').map(char => char.trim()).filter(char => char) : [];
 
     // Create enhanced content object with comprehensive metadata
-    const newContent = {
-      video_url: finalVideoUrl,
-      title: title || null,
-      description_caption: caption || null,
-      thumbnail_url: finalThumbnailUrl || null,
-      duration_seconds: duration ? parseInt(duration) : null,
+    const customMetadata = {
       source: source_name ? {
         name: source_name,
         imageuri: source_image || null
-      } : null,
-      tags: tagArray,
-      // Enhanced metadata for engagement analysis
+      } : {
+        name: 'Admin Upload',
+        imageuri: 'https://i.imgur.com/P8OOZMm.png'
+      },
+      likes: 0,
+      facts: [],
+      tags: rawTagNames, // keep original tag strings for display
+      enabled: true,
       metadata: {
         content_category: content_category || null,
         content_genre: content_genre || null,
@@ -654,59 +760,40 @@ router.post('/content/upload', upload.fields([
           original_name: req.files.video_file[0].originalname,
           size: req.files.video_file[0].size,
           mimetype: req.files.video_file[0].mimetype
-        } : null
-      },
-      uploaded_at: new Date().toISOString()
+        } : null,
+        matched_tag_ids: matchedTagIds // stored for transparency; main linkage is tag_ids column
+      }
     };
 
-    console.log('Enhanced content upload:', JSON.stringify(newContent, null, 2));
+    // Persist to content table with tag_ids linkage
+    const insertQuery = `
+      INSERT INTO content (
+        video_url,
+        description_caption,
+        thumbnail_url,
+        duration_seconds,
+        custom_metadata,
+        tag_ids
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING content_id
+    `;
 
-    // TODO: Save to database when content table is implemented
-    // const result = await db.query(
-    //   'INSERT INTO content (video_url, title, description_caption, thumbnail_url, duration_seconds, custom_metadata, uploaded_by_admin_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING content_id',
-    //   [finalVideoUrl, title, caption, finalThumbnailUrl, duration, newContent.metadata, admin_id]
-    // );
+    await db.query(insertQuery, [
+      finalVideoUrl,
+      title || caption || 'Uploaded video',
+      finalThumbnailUrl || null,
+      duration ? parseInt(duration) : null,
+      JSON.stringify(customMetadata),
+      matchedTagIds.length > 0 ? matchedTagIds : []
+    ]);
 
-    // For now, add to the local VIDEOS array so it shows up in the content library
-    const postsModule = require('./posts');
-    const VIDEOS = postsModule.VIDEOS;
-    
-    // Generate a new ID (find the highest existing ID and add 1)
-    const maxId = VIDEOS.length > 0 ? Math.max(...VIDEOS.map(v => v.id)) : 0;
-    const newId = maxId + 1;
-    
-    // Create a post object that matches the expected format
-    const newPost = {
-      id: newId,
-      uri: finalVideoUrl,
-      caption: title || caption || 'Uploaded video',
-      source: newContent.source || {
-        name: 'Admin Upload',
-        imageuri: 'https://i.imgur.com/P8OOZMm.png'
-      },
-      likes: 0,
-      facts: [],
-      tags: tagArray,
-      enabled: true, // New uploads are enabled by default
-      // Store additional metadata for admin panel display
-      metadata: newContent.metadata,
-      title: title,
-      thumbnail_url: finalThumbnailUrl,
-      duration_seconds: newContent.duration_seconds,
-      uploaded_at: newContent.uploaded_at
-    };
-    
-    // Add to the beginning of the array so it appears first
-    VIDEOS.unshift(newPost);
-    
-    console.log(`Added new video with ID ${newId} to VIDEOS array. Total videos: ${VIDEOS.length}`);
-
-    res.redirect('/admin/content?message=Content uploaded successfully with enhanced metadata');
+    res.redirect('/admin/content?message=Content uploaded (existing tags linked; others ignored)');
   } catch (error) {
     console.error('Error uploading content:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
       res.redirect('/admin/content?error=File too large. Maximum size is 500MB.');
-    } else if (error.message.includes('Only video files are allowed')) {
+    } else if (error.message && error.message.includes('Only video files are allowed')) {
       res.redirect('/admin/content?error=Invalid file type. Only video files are allowed.');
     } else {
       res.redirect('/admin/content?error=Failed to upload content: ' + error.message);
@@ -714,27 +801,14 @@ router.post('/content/upload', upload.fields([
   }
 });
 
-// POST /admin/content/:id/delete - Delete content
+// POST /admin/content/:id/delete - Delete content (DB)
 router.post('/content/:id/delete', async (req, res) => {
   const { id } = req.params;
   try {
-    // TODO: Implement database deletion when content table is ready
-    // const deleteResult = await db.query('DELETE FROM content WHERE content_id = $1 RETURNING title', [id]);
-    
-    // For now, remove from the local VIDEOS array
-    const postsModule = require('./posts');
-    const VIDEOS = postsModule.VIDEOS;
-    
-    const videoIndex = VIDEOS.findIndex(video => video.id === parseInt(id));
-    
-    if (videoIndex === -1) {
+    const deleteResult = await db.query('DELETE FROM content WHERE content_id = $1 RETURNING content_id', [id]);
+    if (deleteResult.rowCount === 0) {
       return res.redirect('/admin/content?error=Video not found');
     }
-    
-    // Remove the video from the array
-    const deletedVideo = VIDEOS.splice(videoIndex, 1)[0];
-    
-    console.log(`Content deletion completed for ID: ${id}. Video "${deletedVideo.title || deletedVideo.caption}" removed. Total videos: ${VIDEOS.length}`);
     res.redirect('/admin/content?message=Content deleted successfully');
   } catch (error) {
     console.error(`Error deleting content ID ${id}:`, error);
@@ -742,27 +816,26 @@ router.post('/content/:id/delete', async (req, res) => {
   }
 });
 
-// POST /admin/content/:id/toggle - Toggle content enabled/disabled status
+// POST /admin/content/:id/toggle - Toggle content enabled/disabled status (DB)
 router.post('/content/:id/toggle', async (req, res) => {
   const { id } = req.params;
   try {
-    // Get the VIDEOS array from posts.js
-    const postsModule = require('./posts');
-    const VIDEOS = postsModule.VIDEOS;
-    
-    const videoIndex = VIDEOS.findIndex(video => video.id === parseInt(id));
-    
-    if (videoIndex === -1) {
+    const getResult = await db.query('SELECT custom_metadata FROM content WHERE content_id = $1', [id]);
+    if (getResult.rows.length === 0) {
       return res.redirect('/admin/content?error=Video not found');
     }
-    
-    // Toggle the enabled status
-    VIDEOS[videoIndex].enabled = !VIDEOS[videoIndex].enabled;
-    
-    const status = VIDEOS[videoIndex].enabled ? 'enabled' : 'disabled';
-    console.log(`Content ID ${id} ${status}`);
-    
-    res.redirect(`/admin/content?message=Content ${status} successfully`);
+
+    const currentMetadata = getResult.rows[0].custom_metadata || {};
+    const currentEnabled = currentMetadata.enabled !== undefined ? currentMetadata.enabled : true;
+    const newEnabled = !currentEnabled;
+    const updatedMetadata = { ...currentMetadata, enabled: newEnabled };
+
+    await db.query(
+      'UPDATE content SET custom_metadata = $2 WHERE content_id = $1',
+      [id, JSON.stringify(updatedMetadata)]
+    );
+
+    res.redirect(`/admin/content?message=Content ${newEnabled ? 'enabled' : 'disabled'} successfully`);
   } catch (error) {
     console.error(`Error toggling content ID ${id}:`, error);
     res.redirect('/admin/content?error=Failed to toggle content status');
@@ -831,401 +904,140 @@ router.get('/stream/thumbnail/:filename', (req, res) => {
   fs.createReadStream(thumbnailPath).pipe(res);
 });
 
-// GET /admin/groups - View groups management page
-router.get('/groups', async (req, res) => {
+// GET /admin/tags - Tag management dashboard
+router.get('/tags', async (req, res) => {
+  const selectedTagId = req.query.tagId ? parseInt(req.query.tagId, 10) : null;
   try {
-    // Query groups with tag names joined
-    // Handle cases where group_members or experiment_groups tables might not exist
-    let groupsQuery = `
-      SELECT 
-        g.group_id,
-        g.description,
-        g.max_participants,
-        g.tag_ids,
-        g.status,
-        COALESCE(array_agg(DISTINCT t.tag_name) FILTER (WHERE t.tag_id IS NOT NULL), ARRAY[]::TEXT[]) as tag_names
-      FROM groups g
-      LEFT JOIN unnest(COALESCE(g.tag_ids, ARRAY[]::INTEGER[])) AS tag_id ON true
-      LEFT JOIN tags t ON t.tag_id = tag_id
-      GROUP BY g.group_id, g.description, g.max_participants, g.tag_ids, g.status
-      ORDER BY g.group_id DESC
-    `;
-    
-    const { rows } = await db.query(groupsQuery);
-    
-    // Get member counts and experiment counts separately (handle missing tables gracefully)
-    let memberCounts = {};
-    let experimentCounts = {};
-    
-    try {
-      const memberQuery = 'SELECT group_id, COUNT(*) as count FROM group_members GROUP BY group_id';
-      const memberResult = await db.query(memberQuery);
-      memberResult.rows.forEach(row => {
-        memberCounts[row.group_id] = parseInt(row.count);
-      });
-    } catch (e) {
-      // group_members table doesn't exist, use empty counts
-      console.log('group_members table not found, using empty counts');
+    const tags = await fetchTagsWithUsage();
+    let taggedContent = [];
+
+    if (selectedTagId) {
+      taggedContent = await fetchContentForTag(selectedTagId);
     }
-    
-    try {
-      const expQuery = 'SELECT group_id, COUNT(*) as count FROM experiment_groups GROUP BY group_id';
-      const expResult = await db.query(expQuery);
-      expResult.rows.forEach(row => {
-        experimentCounts[row.group_id] = parseInt(row.count);
-      });
-    } catch (e) {
-      // experiment_groups table doesn't exist, use empty counts
-      console.log('experiment_groups table not found, using empty counts');
-    }
-    
-    // Transform data for view
-    const groups = rows.map(row => ({
-      id: row.group_id,
-      description: row.description || '',
-      max_participants: row.max_participants,
-      tag_ids: row.tag_ids || [],
-      tag_names: row.tag_names || [],
-      status: row.status === 1 ? 'active' : 'inactive',
-      member_count: memberCounts[row.group_id] || 0,
-      experiment_count: experimentCounts[row.group_id] || 0
-    }));
-    
-    // Also fetch all available tags for the form
-    const tagsQuery = 'SELECT tag_id, tag_name, tag_category FROM tags ORDER BY tag_category, tag_name';
-    const tagsResult = await db.query(tagsQuery);
-    
-    res.render('groups', {
-      title: 'Group Management',
-      groups: groups,
-      availableTags: tagsResult.rows,
+
+    res.render('tags', {
+      title: 'Tag Management',
+      tags,
+      taggedContent,
+      selectedTagId,
       message: req.query.message,
-      error: req.query.error
+      error: null
     });
   } catch (error) {
-    console.error('Error loading groups page:', error);
-    res.render('groups', {
-      title: 'Group Management',
-      groups: [],
-      availableTags: [],
-      error: 'Could not load groups data.'
+    console.error('Error loading tags page:', error);
+    res.render('tags', {
+      title: 'Tag Management',
+      tags: [],
+      taggedContent: [],
+      selectedTagId,
+      error: 'Could not load tags data.'
     });
   }
 });
 
-// POST /admin/groups/create - Create a new group
-router.post('/groups/create', async (req, res) => {
+// POST /admin/tags/create - Create a new tag
+router.post('/tags/create', async (req, res) => {
+  const { tag_name, tag_category, description } = req.body;
+  const cleanedName = (tag_name || '').trim().replace(/^#/, '');
+  const normalizedName = cleanedName.toLowerCase();
+  const cleanedCategory = (tag_category || 'general').trim().toLowerCase() || 'general';
+
+  if (!cleanedName) {
+    return res.redirect('/admin/tags?error=Tag name is required');
+  }
+
   try {
-    const {
-      description,
-      status,
-      max_participants,
-      tag_ids
-    } = req.body;
-
-    // Convert status to 0/1
-    const statusValue = status === 'active' || status === '1' ? 1 : 0;
-    
-    // Parse tag_ids - can be comma-separated string or array
-    // Empty tag_ids is valid - groups can have no tags
-    let tagIdsArray = [];
-    if (tag_ids) {
-      if (Array.isArray(tag_ids)) {
-        tagIdsArray = tag_ids.map(id => parseInt(id)).filter(id => !isNaN(id));
-      } else if (typeof tag_ids === 'string' && tag_ids.trim() !== '') {
-        tagIdsArray = tag_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-      }
-    }
-
-    // Validate tag set uniqueness (compare sorted tag_ids arrays)
-    // Empty arrays are considered the same tag set, so only one group can have no tags
-    const sortedTagIds = [...tagIdsArray].sort((a, b) => a - b);
-    const { rows: existingGroups } = await db.query(
-      'SELECT group_id, tag_ids FROM groups'
+    const exists = await db.query(
+      `SELECT 1 FROM tags WHERE lower(tag_name) = $1 AND lower(tag_category) = $2 LIMIT 1`,
+      [normalizedName, cleanedCategory]
     );
-    
-    for (const row of existingGroups) {
-      const existingTagIds = (row.tag_ids || []).sort((a, b) => a - b);
-      if (existingTagIds.length === sortedTagIds.length &&
-          existingTagIds.every((id, idx) => id === sortedTagIds[idx])) {
-        return res.redirect('/admin/groups?error=Another group already has the exact same tag set');
-      }
+    if (exists.rowCount > 0) {
+      return res.redirect('/admin/tags?error=Tag already exists in this category');
     }
 
-    // Insert into database
-    // Use NULL for empty tag arrays to be consistent with database schema
-    const insertQuery = `
-      INSERT INTO groups (description, max_participants, tag_ids, status)
-      VALUES ($1, $2, $3, $4)
-      RETURNING group_id
-    `;
-    const values = [
-      description || null,
-      max_participants ? parseInt(max_participants) : null,
-      tagIdsArray.length > 0 ? tagIdsArray : null,
-      statusValue
-    ];
-    
-    const { rows } = await db.query(insertQuery, values);
-    const newGroupId = rows[0].group_id;
-
-    res.redirect('/admin/groups?message=Group created successfully');
-  } catch (error) {
-    console.error('Error creating group:', error);
-    res.redirect('/admin/groups?error=Failed to create group: ' + error.message);
-  }
-});
-
-// POST /admin/groups/:id/edit - Edit an existing group
-router.post('/groups/:id/edit', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      description,
-      status,
-      max_participants,
-      tag_ids
-    } = req.body;
-
-    // Convert status to 0/1
-    const statusValue = status === 'active' || status === '1' ? 1 : 0;
-    
-    // Parse tag_ids
-    // Empty tag_ids is valid - groups can have no tags
-    let tagIdsArray = [];
-    if (tag_ids) {
-      if (Array.isArray(tag_ids)) {
-        tagIdsArray = tag_ids.map(id => parseInt(id)).filter(id => !isNaN(id));
-      } else if (typeof tag_ids === 'string' && tag_ids.trim() !== '') {
-        tagIdsArray = tag_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-      }
-    }
-
-    // Validate tag set uniqueness (excluding current group)
-    // Empty arrays are considered the same tag set, so only one group can have no tags
-    const sortedTagIds = [...tagIdsArray].sort((a, b) => a - b);
-    const { rows: existingGroups } = await db.query(
-      'SELECT group_id, tag_ids FROM groups WHERE group_id <> $1',
-      [id]
+    const result = await db.query(
+      `
+        INSERT INTO tags (tag_name, tag_category, description, created_by_admin_id)
+        VALUES ($1, $2, $3, $4)
+        RETURNING tag_id
+      `,
+      [normalizedName, cleanedCategory, description || null, 1] // TODO: replace with authenticated admin id
     );
-    
-    for (const row of existingGroups) {
-      const existingTagIds = (row.tag_ids || []).sort((a, b) => a - b);
-      if (existingTagIds.length === sortedTagIds.length &&
-          existingTagIds.every((id, idx) => id === sortedTagIds[idx])) {
-        return res.redirect('/admin/groups?error=Another group already has the exact same tag set');
-      }
-    }
 
-    // Update in database
-    // Use NULL for empty tag arrays to be consistent with database schema
-    const updateQuery = `
-      UPDATE groups 
-      SET description = $1, max_participants = $2, tag_ids = $3, status = $4
-      WHERE group_id = $5
-      RETURNING group_id
-    `;
-    const values = [
-      description || null,
-      max_participants ? parseInt(max_participants) : null,
-      tagIdsArray.length > 0 ? tagIdsArray : null,
-      statusValue,
-      id
-    ];
-    
-    const { rows } = await db.query(updateQuery, values);
-    
-    if (rows.length === 0) {
-      return res.redirect('/admin/groups?error=Group not found');
-    }
-
-    res.redirect('/admin/groups?message=Group updated successfully');
+    res.redirect('/admin/tags?message=Tag created');
   } catch (error) {
-    console.error(`Error updating group ${req.params.id}:`, error);
-    res.redirect('/admin/groups?error=Failed to update group: ' + error.message);
+    console.error('Error creating tag:', error);
+    res.redirect('/admin/tags?error=Failed to create tag');
   }
 });
 
-// POST /admin/groups/:id/delete - Delete a group
-router.post('/groups/:id/delete', async (req, res) => {
+// POST /admin/tags/:id/edit - Update an existing tag
+router.post('/tags/:id/edit', async (req, res) => {
+  const { id } = req.params;
+  const { tag_name, tag_category, description } = req.body;
+  const cleanedName = (tag_name || '').trim().replace(/^#/, '');
+  const normalizedName = cleanedName.toLowerCase();
+  const cleanedCategory = (tag_category || 'general').trim().toLowerCase() || 'general';
+
+  if (!cleanedName) {
+    return res.redirect('/admin/tags?error=Tag name is required');
+  }
+
   try {
-    const { id } = req.params;
-
-    const deleteQuery = `
-      DELETE FROM groups 
-      WHERE group_id = $1
-      RETURNING group_id
-    `;
-    const { rows } = await db.query(deleteQuery, [id]);
-
-    if (rows.length === 0) {
-      return res.redirect('/admin/groups?error=Group not found');
+    const dupe = await db.query(
+      `SELECT 1 FROM tags WHERE lower(tag_name) = $1 AND lower(tag_category) = $2 AND tag_id <> $3 LIMIT 1`,
+      [normalizedName, cleanedCategory, id]
+    );
+    if (dupe.rowCount > 0) {
+      return res.redirect('/admin/tags?error=Another tag already exists in this category');
     }
 
-    console.log(`Group ${id} deleted`);
+    const result = await db.query(
+      `
+        UPDATE tags
+        SET tag_name = $1, tag_category = $2, description = $3
+        WHERE tag_id = $4
+        RETURNING tag_id
+      `,
+      [normalizedName, cleanedCategory, description || null, id]
+    );
 
-    res.redirect('/admin/groups?message=Group deleted successfully');
+    if (result.rowCount === 0) {
+      return res.redirect('/admin/tags?error=Tag not found');
+    }
+
+    res.redirect('/admin/tags?message=Tag updated');
   } catch (error) {
-    console.error(`Error deleting group ${req.params.id}:`, error);
-    res.redirect('/admin/groups?error=Failed to delete group: ' + error.message);
+    console.error(`Error updating tag ${id}:`, error);
+    res.redirect('/admin/tags?error=Failed to update tag');
   }
 });
 
-// GET /admin/groups/:id - Get single group for editing
-router.get('/groups/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const groupQuery = `
-      SELECT 
-        g.group_id,
-        g.description,
-        g.max_participants,
-        g.tag_ids,
-        g.status,
-        COALESCE(array_agg(t.tag_name) FILTER (WHERE t.tag_id IS NOT NULL), ARRAY[]::TEXT[]) as tag_names
-      FROM groups g
-      LEFT JOIN unnest(g.tag_ids) AS tag_id ON true
-      LEFT JOIN tags t ON t.tag_id = tag_id
-      WHERE g.group_id = $1
-      GROUP BY g.group_id, g.description, g.max_participants, g.tag_ids, g.status
-    `;
-    
-    const { rows } = await db.query(groupQuery, [id]);
-    
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-    
-    const group = {
-      id: rows[0].group_id,
-      description: rows[0].description || '',
-      max_participants: rows[0].max_participants,
-      tag_ids: rows[0].tag_ids || [],
-      tag_names: rows[0].tag_names || [],
-      status: rows[0].status === 1 ? 'active' : 'inactive'
-    };
-    
-    res.json(group);
-  } catch (error) {
-    console.error(`Error fetching group ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to fetch group' });
+// POST /admin/tags/:id/delete - Delete a tag and remove it from content
+router.post('/tags/:id/delete', async (req, res) => {
+  const { id } = req.params;
+  const tagId = parseInt(id, 10);
+
+  if (Number.isNaN(tagId)) {
+    return res.redirect('/admin/tags?error=Invalid tag id');
   }
-});
 
-// GET /admin/groups/:id/members - View group members
-router.get('/groups/:id/members', async (req, res) => {
   try {
-    const { id } = req.params;
+    await db.query(
+      'UPDATE content SET tag_ids = array_remove(tag_ids, $1::int) WHERE tag_ids @> ARRAY[$1::int];',
+      [tagId]
+    );
 
-    // TODO: Implement when group members table is ready
-    // const queryText = `
-    //   SELECT au.user_id, au.firebase_uid, gm.joined_at, gm.status
-    //   FROM group_members gm
-    //   JOIN app_users au ON gm.user_id = au.user_id
-    //   WHERE gm.group_id = $1
-    //   ORDER BY gm.joined_at DESC;
-    // `;
-    // const { rows } = await db.query(queryText, [id]);
+    const result = await db.query('DELETE FROM tags WHERE tag_id = $1 RETURNING tag_id', [tagId]);
 
-    res.json({
-      group_id: id,
-      members: [], // rows
-      message: 'Group members endpoint - to be implemented'
-    });
-  } catch (error) {
-    console.error(`Error fetching group ${id} members:`, error);
-    res.status(500).json({ error: 'Failed to fetch group members' });
-  }
-});
-
-// POST /admin/groups/:id/add-member - Add member to group
-router.post('/groups/:id/add-member', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { user_id } = req.body;
-
-    // TODO: Implement when group members table is ready
-    // const queryText = `
-    //   INSERT INTO group_members (group_id, user_id, joined_at, status)
-    //   VALUES ($1, $2, NOW(), 'active')
-    //   ON CONFLICT (group_id, user_id) DO NOTHING
-    //   RETURNING group_id, user_id;
-    // `;
-    // const { rows } = await db.query(queryText, [id, user_id]);
-
-    console.log(`User ${user_id} added to group ${id}`);
-
-    res.redirect(`/admin/groups/${id}/members?message=Member added successfully`);
-  } catch (error) {
-    console.error(`Error adding member to group ${id}:`, error);
-    res.redirect(`/admin/groups/${id}/members?error=Failed to add member`);
-  }
-});
-
-// POST /admin/groups/:id/remove-member - Remove member from group
-router.post('/groups/:id/remove-member', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { user_id } = req.body;
-
-    // TODO: Implement when group members table is ready
-    // const queryText = `
-    //   DELETE FROM group_members 
-    //   WHERE group_id = $1 AND user_id = $2
-    //   RETURNING group_id, user_id;
-    // `;
-    // const { rows } = await db.query(queryText, [id, user_id]);
-
-    console.log(`User ${user_id} removed from group ${id}`);
-
-    res.redirect(`/admin/groups/${id}/members?message=Member removed successfully`);
-  } catch (error) {
-    console.error(`Error removing member from group ${id}:`, error);
-    res.redirect(`/admin/groups/${id}/members?error=Failed to remove member`);
-  }
-});
-
-// POST /admin/groups/bulk-add-members - Bulk add selected users to a group
-router.post('/groups/bulk-add-members', async (req, res) => {
-  try {
-    const { group_id } = req.body;
-    let { selected_user_ids } = req.body;
-
-    if (!group_id) {
-      return res.redirect('/admin/participants?error=Missing group selection');
+    if (result.rowCount === 0) {
+      return res.redirect('/admin/tags?error=Tag not found');
     }
 
-    if (!selected_user_ids) {
-      return res.redirect('/admin/participants?error=No participants selected');
-    }
-
-    if (!Array.isArray(selected_user_ids)) {
-      selected_user_ids = [selected_user_ids];
-    }
-
-    const targetGroupId = Number(group_id);
-    const targetSet = ensureGroupSet(targetGroupId);
-
-    // Enforce single-group rule by reassigning: remove from old group if present, then add to target
-    for (const userIdRaw of selected_user_ids) {
-      const userId = Number(userIdRaw);
-      const existingGroupId = USER_TO_GROUP.get(userId);
-      if (existingGroupId && existingGroupId !== targetGroupId) {
-        const oldSet = ensureGroupSet(existingGroupId);
-        oldSet.delete(userId);
-      }
-      // Assign to target
-      targetSet.add(userId);
-      USER_TO_GROUP.set(userId, targetGroupId);
-    }
-
-    updateGroupMemberCounts();
-
-    return res.redirect('/admin/participants?message=Participants assigned to group');
+    res.redirect('/admin/tags?message=Tag deleted');
   } catch (error) {
-    console.error('Error bulk-adding members to group:', error);
-    return res.redirect('/admin/participants?error=Failed to assign participants');
+    console.error(`Error deleting tag ${tagId}:`, error);
+    res.redirect('/admin/tags?error=Failed to delete tag');
   }
 });
 

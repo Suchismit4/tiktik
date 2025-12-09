@@ -32,8 +32,8 @@
       <a href="/admin/participants" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
         <i class="material-icons mr-4">people</i> Participants
       </a>
-      <a href="/admin/groups" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
-        <i class="material-icons mr-4">groups</i> Groups
+      <a href="/admin/tags" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+        <i class="material-icons mr-4">local_offer</i> Tags
       </a>
       <a href="/admin/content" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
         <i class="material-icons mr-4">video_library</i> Content
@@ -59,7 +59,9 @@
                 <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Type</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Start Date</th>
-                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">End Date</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">End Date/Time</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">TTL (s)</th>
+                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">TTL Remaining (s)</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Created By</th>
                 <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
               </tr>
@@ -85,6 +87,8 @@
                     </td>
                     <td class="py-3 px-4 text-sm text-gray-700"><%= exp.start_date || 'N/A' %></td>
                     <td class="py-3 px-4 text-sm text-gray-700"><%= exp.end_date || 'N/A' %></td>
+                    <td class="py-3 px-4 text-sm text-gray-700"><%= exp.ttl_seconds !== null && exp.ttl_seconds !== undefined ? exp.ttl_seconds : '∞' %></td>
+                    <td class="py-3 px-4 text-sm text-gray-700"><%= exp.ttl_remaining !== null && exp.ttl_remaining !== undefined ? Math.round(exp.ttl_remaining) : '∞' %></td>
                     <td class="py-3 px-4 text-sm text-gray-700"><%= exp.created_by_admin_username || 'N/A' %></td>
                     <td class="py-3 px-4 text-sm text-gray-700 flex items-center gap-2">
                       <a href="/admin/results/<%= exp.experiment_id %>" class="text-indigo-600 hover:text-indigo-800 font-medium">View Details</a>

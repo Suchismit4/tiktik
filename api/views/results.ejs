@@ -32,8 +32,8 @@
       <a href="/admin/participants" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
         <i class="material-icons mr-4">people</i> Participants
       </a>
-      <a href="/admin/groups" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
-        <i class="material-icons mr-4">groups</i> Groups
+            <a href="/admin/tags" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                <i class="material-icons mr-4">local_offer</i> Tags
       </a>
       <!-- <a href="/admin/settings" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
         <i class="material-icons mr-4">settings</i> Settings
@@ -62,6 +62,8 @@
             <p><strong>Created By:</strong> <span class="text-gray-600"><%= experiment.created_by_admin_username || 'N/A' %></span></p>
             <p><strong>Start Date:</strong> <span class="text-gray-600"><%= experiment.start_date || 'N/A' %></span></p>
             <p><strong>End Date:</strong> <span class="text-gray-600"><%= experiment.end_date || 'N/A' %></span></p>
+            <p><strong>TTL (s):</strong> <span class="text-gray-600"><%= experiment.ttl_seconds !== null && experiment.ttl_seconds !== undefined ? experiment.ttl_seconds : '∞' %></span></p>
+            <p><strong>TTL Remaining (s):</strong> <span class="text-gray-600"><%= experiment.ttl_remaining !== null && experiment.ttl_remaining !== undefined ? Math.round(experiment.ttl_remaining) : '∞' %></span></p>
             <p><strong>Created At:</strong> <span class="text-gray-600"><%= experiment.created_at || 'N/A' %></span></p>
             <p><strong>Config Details:</strong> <pre class="text-gray-600 bg-gray-100 p-2 rounded text-xs max-h-40 overflow-y-auto"><%= experiment.config_details ? JSON.stringify(experiment.config_details, null, 2) : 'N/A' %></pre></p>
           </div>

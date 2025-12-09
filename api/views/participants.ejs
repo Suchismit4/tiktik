@@ -32,8 +32,8 @@
             <a href="/admin/participants" class="sidebar-menu-item active flex items-center px-6 py-3 text-primary bg-blue-50 font-medium hover:bg-blue-50 transition-colors duration-200">
                 <i class="material-icons mr-4">people</i> Participants
             </a>
-            <a href="/admin/groups" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
-                <i class="material-icons mr-4">groups</i> Groups
+            <a href="/admin/tags" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
+                <i class="material-icons mr-4">local_offer</i> Tags
             </a>
             <a href="/admin/content" class="sidebar-menu-item flex items-center px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200">
                 <i class="material-icons mr-4">video_library</i> Content
@@ -48,21 +48,9 @@
         <div class="card bg-white rounded-lg shadow-elevation-1 mb-8">
             <div class="card-header py-5 px-6 flex items-center justify-between border-b border-gray-200">
                 <div class="card-title text-xl font-medium text-gray-800">Participants</div>
-                <!-- <form action="/admin/groups/bulk-add-members" method="POST" class="flex items-center gap-3">
-                    <select name="group_id" class="form-control px-3 py-2 border border-gray-300 rounded-md bg-white" required>
-                        <option value="" disabled selected>Select group</option>
-                        <% if (groups && groups.length > 0) { %>
-                            <% groups.forEach(function(g) { %>
-                                <option value="<%= g.id %>"><%= g.name %> (<%= g.member_count || 0 %>)</option>
-                            <% }); %>
-                        <% } %>
-                    </select>
-                    <button type="submit" class="btn btn-primary px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors">Add Selected</button>
-                </form> -->
             </div>
             <div class="card-content p-0">
                 <div class="overflow-x-auto">
-                    <!-- <form action="/admin/groups/bulk-add-members" method="POST" id="bulk-assign-form"> -->
                     <table class="data-table w-full">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
