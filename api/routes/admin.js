@@ -144,19 +144,26 @@ function computeExperimentView(row) {
     }
   }
 
-  let status = row.status;
+  // Get original status and normalize to lowercase for comparison
+  const originalStatus = (row.status || '').toLowerCase();
+  let status = originalStatus;
+  const notStartedYet = anchor && now < anchor;
+
+  // For planning experiments that haven't started yet, ALWAYS keep them as planning
+  if (originalStatus === 'planning' && notStartedYet) {
+    return { ...row, ttl_remaining: ttlRemaining, status: 'planning' };
+  }
 
   // Auto-activate in view if planning and start time passed
-  if (status === 'planning' && anchor && now >= anchor) {
+  if (originalStatus === 'planning' && anchor && now >= anchor) {
     status = 'active';
   }
 
   // If status is completed but nothing has actually expired yet, keep it active/planning.
-  if (status === 'completed') {
+  if (originalStatus === 'completed') {
     const nothingToExpire =
       (row.ttl_seconds === null || row.ttl_seconds === undefined) &&
       !endDate;
-    const notStartedYet = anchor && now < anchor;
     if (nothingToExpire) {
       status = notStartedYet ? 'planning' : 'active';
     } else if (notStartedYet) {
@@ -164,10 +171,24 @@ function computeExperimentView(row) {
     }
   }
 
-  const isExpiredByTtl = ttlRemaining !== null && ttlRemaining <= 0 && anchor && now >= anchor;
-  const isExpiredByEndDate = endDate && now > endDate;
-  if (status === 'active' && (isExpiredByTtl || isExpiredByEndDate)) {
-    status = 'completed';
+  // Only mark as completed if experiment is active and has actually expired
+  // Never mark planning experiments as completed
+  if (status === 'active' && originalStatus !== 'planning') {
+    const isExpiredByTtl = ttlRemaining !== null && ttlRemaining <= 0 && anchor && now >= anchor;
+    const isExpiredByEndDate = endDate && now > endDate;
+    if (isExpiredByTtl || isExpiredByEndDate) {
+      status = 'completed';
+    }
+  }
+
+  // Final safety check: never mark planning experiments as completed
+  if (originalStatus === 'planning') {
+    if (notStartedYet) {
+      status = 'planning';
+    } else if (status === 'completed') {
+      // If somehow it got marked as completed, revert to active
+      status = 'active';
+    }
   }
 
   return { ...row, ttl_remaining: ttlRemaining, status };
@@ -190,9 +211,24 @@ router.get('/', async (req, res) => {
              ORDER BY exp.created_at DESC LIMIT 10` // Fetch recent 10 experiments
         );
         
+        // Compute view status for all experiments
+        const allExperiments = rows.map(computeExperimentView);
+        
+        // Separate active/planning from completed
+        const activeExperiments = allExperiments.filter(exp => {
+            const statusLower = (exp.status || '').toLowerCase();
+            return statusLower !== 'completed';
+        });
+        
+        const completedExperiments = allExperiments.filter(exp => {
+            const statusLower = (exp.status || '').toLowerCase();
+            return statusLower === 'completed';
+        });
+        
         res.render('admin', { 
             title: 'Admin Panel',
-            experiments: rows.map(computeExperimentView), // rows will be an array of experiment objects
+            experiments: activeExperiments, // Only active/planning experiments
+            completedExperiments: completedExperiments, // Only completed experiments
             error: null
         });
     } catch (error) {
@@ -200,6 +236,7 @@ router.get('/', async (req, res) => {
         res.render('admin', { 
             title: 'Admin Panel',
             experiments: [],
+            completedExperiments: [],
             error: 'Could not fetch experiments from database.'
         });
     }

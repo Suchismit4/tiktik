@@ -67,6 +67,7 @@
 -- -- --     config_details JSONB,              -- Experiment-specific settings (variant definitions, survey structure)
 -- -- --     start_date TIMESTAMPTZ,
 -- -- --     end_date TIMESTAMPTZ,
+-- -- --     ttl_seconds INTEGER, 
 -- -- --     created_by_admin_id INTEGER REFERENCES admins(admin_id) ON DELETE SET NULL,
 -- -- --     created_at TIMESTAMPTZ DEFAULT NOW(),
 -- -- --     CONSTRAINT check_dates CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
@@ -109,12 +110,3 @@
 -- COMMENT ON COLUMN interaction_data.content_id IS 'Content item related to the interaction. Set to NULL if content is deleted.';
 -- COMMENT ON COLUMN interaction_data.payload IS 'Flexible JSONB field for detailed, type-specific interaction data.';
 
--- -- -- ========== Table: groups ==========
--- -- Stores information about each group and the types of content they view when chosen for an experiment.
--- CREATE TABLE groups (
---      group_id SERIAL PRIMARY KEY,
---      description TEXT,
---      max_participants INTEGER,
---      tag_ids INTEGER[],
---      status INTEGER NOT NULL
--- );
